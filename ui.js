@@ -361,6 +361,57 @@ class UI {
         modal.style.display = 'none';
     }
 
+    showNotification(title, message, icon = '💬') {
+        const modal = document.getElementById('notification-modal');
+        const iconEl = document.getElementById('notification-icon');
+        const titleEl = document.getElementById('notification-title');
+        const messageEl = document.getElementById('notification-message');
+        const okBtn = document.getElementById('notification-ok-btn');
+
+        iconEl.textContent = icon;
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        // Remove any existing event listeners
+        const newOkBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+        newOkBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        modal.style.display = 'flex';
+    }
+
+    showConfirmation(title, message, onConfirm) {
+        const modal = document.getElementById('confirmation-modal');
+        const titleEl = document.getElementById('confirmation-title');
+        const messageEl = document.getElementById('confirmation-message');
+        const yesBtn = document.getElementById('confirmation-yes-btn');
+        const noBtn = document.getElementById('confirmation-no-btn');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        // Remove any existing event listeners by cloning
+        const newYesBtn = yesBtn.cloneNode(true);
+        const newNoBtn = noBtn.cloneNode(true);
+        yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+        noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+
+        newYesBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            onConfirm(true);
+        });
+
+        newNoBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            onConfirm(false);
+        });
+
+        modal.style.display = 'flex';
+    }
+
     reset() {
         this.encountersContainer.innerHTML = '';
         this.updateGameStats();

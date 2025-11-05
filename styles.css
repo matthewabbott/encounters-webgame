@@ -758,6 +758,62 @@ footer {
     color: var(--card-black);
 }
 
+/* Notification Modal */
+.notification-content {
+    max-width: 500px;
+    text-align: center;
+}
+
+.notification-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.notification-content h2 {
+    margin-bottom: 15px;
+    color: var(--text-light);
+}
+
+.notification-content p {
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.notification-content .btn {
+    min-width: 120px;
+}
+
+/* Confirmation Modal */
+.confirmation-content {
+    max-width: 500px;
+    text-align: center;
+}
+
+.confirmation-content h2 {
+    margin-bottom: 15px;
+    color: var(--text-light);
+}
+
+.confirmation-content p {
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    white-space: pre-line;
+}
+
+.confirmation-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.confirmation-buttons .btn {
+    min-width: 120px;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
     .main-content {

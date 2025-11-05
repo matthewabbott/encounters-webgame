@@ -162,14 +162,14 @@ class Game {
             if (allFailed) {
                 this.checkDeadlock();
             } else {
-                alert('All encounter slots are full! Complete or abandon an encounter first.');
+                this.ui.showNotification('⚠️ Slots Full', 'All encounter slots are full! Complete or abandon an encounter first.', '⚠️');
             }
             return;
         }
 
         // Check if we have enough cards left
         if (this.deck.size < 2) {
-            alert('Not enough cards in deck!');
+            this.ui.showNotification('⚠️ Not Enough Cards', 'Not enough cards in deck!', '⚠️');
             return;
         }
 
@@ -252,7 +252,7 @@ class Game {
         }
 
         if (this.deck.size === 0) {
-            alert('No cards left in deck!');
+            this.ui.showNotification('⚠️ No Cards', 'No cards left in deck!', '⚠️');
             return false;
         }
 
@@ -291,13 +291,13 @@ class Game {
             encounter.completed = true;
             this.ui.renderEncounter(encounter);
             setTimeout(() => {
-                alert(`Encounter "${encounter.type.name}" completed!`);
+                this.ui.showNotification('✅ Encounter Complete!', `"${encounter.type.name}" completed!`, '✅');
             }, 100);
         } else if (encounter.checkFailCondition()) {
             encounter.failed = true;
             this.ui.renderEncounter(encounter);
             setTimeout(() => {
-                alert(`Encounter "${encounter.type.name}" failed! Slot is now locked.`);
+                this.ui.showNotification('❌ Encounter Failed', `"${encounter.type.name}" failed!\n\nSlot is now locked.`, '❌');
                 this.checkDeadlock();
             }, 100);
         } else {
@@ -313,32 +313,33 @@ class Game {
         if (allFailed && hasEncounters) {
             // Deadlock detected!
             setTimeout(() => {
-                const jackOut = confirm(
-                    '⚠️ DEADLOCK DETECTED ⚠️\n\n' +
-                    'All encounter slots are locked with failed encounters.\n' +
-                    'You cannot progress further.\n\n' +
-                    'Jack out and end the run?'
+                this.ui.showConfirmation(
+                    '⚠️ DEADLOCK DETECTED',
+                    'All encounter slots are locked with failed encounters.\n\nYou cannot progress further.\n\nJack out and end the run?',
+                    (confirmed) => {
+                        if (confirmed) {
+                            this.endRun(false); // false = defeated/jacked out
+                        }
+                    }
                 );
-
-                if (jackOut) {
-                    this.endRun(false); // false = defeated/jacked out
-                }
             }, 500);
         }
     }
 
     endRun(victory) {
+        const title = victory ? '🎉 VICTORY!' : '💀 Run Ended';
         const message = victory
-            ? '🎉 VICTORY! You completed the run! 🎉'
-            : '💀 RUN ENDED 💀\n\nYou jacked out of the system.';
+            ? 'You completed the run!'
+            : 'You jacked out of the system.';
+        const icon = victory ? '🎉' : '💀';
 
-        alert(message);
+        this.ui.showNotification(title, message, icon);
 
         // For now, just reset the game
         // TODO: Show stats screen and meta rewards
         setTimeout(() => {
             this.resetGame();
-        }, 100);
+        }, 1500);
     }
 
     generateRewardCards(count) {
@@ -425,48 +426,50 @@ class Game {
             return false;
         }
 
-        const confirmAbandon = confirm(
-            `Are you sure you want to abandon "${encounter.type.name}"? ` +
-            `This will return all ${encounter.getAllCards().length} cards to the deck.`
+        this.ui.showConfirmation(
+            'Abandon Encounter?',
+            `Are you sure you want to abandon "${encounter.type.name}"?\n\nThis will return all ${encounter.getAllCards().length} cards to the deck.`,
+            (confirmed) => {
+                if (confirmed) {
+                    // Return all cards to deck
+                    const cards = encounter.getAllCards();
+                    this.deck.returnCards(cards);
+
+                    // Remove encounter
+                    this.encounters.delete(encounterId);
+                    this.ui.removeEncounter(encounterId);
+                    this.ui.updateGameStats();
+                }
+            }
         );
-
-        if (!confirmAbandon) {
-            return false;
-        }
-
-        // Return all cards to deck
-        const cards = encounter.getAllCards();
-        this.deck.returnCards(cards);
-
-        // Remove encounter
-        this.encounters.delete(encounterId);
-        this.ui.removeEncounter(encounterId);
-        this.ui.updateGameStats();
 
         return true;
     }
 
     resetGame() {
-        const confirmReset = confirm('Are you sure you want to reset the game? All progress will be lost.');
-        if (!confirmReset) {
-            return;
-        }
+        this.ui.showConfirmation(
+            'Reset Game?',
+            'Are you sure you want to reset the game?\n\nAll progress will be lost.',
+            (confirmed) => {
+                if (confirmed) {
+                    this.deck = new Deck();
+                    this.encounters.clear();
+                    this.nextEncounterId = 1;
+                    this.maxEncounterSlots = 2; // Reset to starting slots
 
-        this.deck = new Deck();
-        this.encounters.clear();
-        this.nextEncounterId = 1;
-        this.maxEncounterSlots = 2; // Reset to starting slots
+                    // Reset progression
+                    this.encountersCleared = 0;
+                    this.bossDefeated = false;
+                    this.bossDeclineCount = 0;
 
-        // Reset progression
-        this.encountersCleared = 0;
-        this.bossDefeated = false;
-        this.bossDeclineCount = 0;
+                    // Regenerate next encounter options
+                    this.generateNextEncounterOptions();
 
-        // Regenerate next encounter options
-        this.generateNextEncounterOptions();
-
-        this.ui.reset();
-        this.ui.updateGameStats();
+                    this.ui.reset();
+                    this.ui.updateGameStats();
+                }
+            }
+        );
     }
 
     getActiveEncounterCount() {
