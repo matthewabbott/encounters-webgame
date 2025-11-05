@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel Encounters - Card Game Prototype</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>Parallel Encounters</h1>
+            <div class="game-stats">
+                <div class="stat">
+                    <span class="stat-label">Deck:</span>
+                    <span id="deck-count" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Active Encounters:</span>
+                    <span id="active-encounters" class="stat-value">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Left sidebar: Deck and controls -->
+            <aside class="sidebar">
+                <div class="deck-section">
+                    <h2>Deck</h2>
+                    <div id="deck-display" class="deck-pile">
+                        <div class="card-back">?</div>
+                    </div>
+                    <div id="deck-contents" class="deck-info"></div>
+                </div>
+
+                <div class="controls-section">
+                    <h2>Actions</h2>
+                    <button id="new-encounter-btn" class="btn btn-primary">
+                        Start New Encounter
+                    </button>
+                    <button id="reset-game-btn" class="btn btn-secondary">
+                        Reset Game
+                    </button>
+                </div>
+
+                <div class="info-section">
+                    <h3>How to Play</h3>
+                    <p>Enter multiple encounters simultaneously. All encounters share the same deck!</p>
+                    <p>Cards in one encounter's hand can't be drawn in another encounter.</p>
+                    <p>Complete encounters to return cards to the deck.</p>
+                </div>
+            </aside>
+
+            <!-- Main area: Active encounters -->
+            <main class="encounters-area">
+                <div id="encounters-container" class="encounters-grid">
+                    <!-- Encounters will be dynamically added here -->
+                </div>
+
+                <div id="empty-state" class="empty-state">
+                    <p>No active encounters. Click "Start New Encounter" to begin!</p>
+                </div>
+            </main>
+        </div>
+
+        <footer>
+            <p>Prototype v0.1 - Parallel Encounters Concept</p>
+        </footer>
+    </div>
+
+    <!-- Templates -->
+    <template id="encounter-template">
+        <div class="encounter" data-encounter-id="">
+            <div class="encounter-header">
+                <h3 class="encounter-title"></h3>
+                <span class="encounter-type"></span>
+            </div>
+            <div class="encounter-objective"></div>
+            <div class="encounter-progress"></div>
+            <div class="encounter-hand">
+                <div class="hand-label">Hand:</div>
+                <div class="cards-container"></div>
+            </div>
+            <div class="encounter-actions">
+                <button class="btn btn-small draw-btn">Draw Card</button>
+                <button class="btn btn-small complete-btn" style="display:none;">Complete</button>
+                <button class="btn btn-small btn-danger abandon-btn">Abandon</button>
+            </div>
+        </div>
+    </template>
+
+    <template id="card-template">
+        <div class="card" data-card-id="">
+            <div class="card-rank"></div>
+            <div class="card-suit"></div>
+        </div>
+    </template>
+
+    <script type="module" src="game.js"></script>
+</body>
+</html>
