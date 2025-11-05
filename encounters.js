@@ -296,6 +296,232 @@ const EncounterTypes = {
                 .join(' ');
             return `Sequence: ${progress || 'None'} | Next: ${needed[encounter.playedCards.length] || 'Done!'}`;
         }
+    },
+
+    /**
+     * Chain Reaction (Hard): Play cards in ascending order
+     */
+    ChainReaction: {
+        name: "Chain Reaction",
+        description: "Play 3 cards in strictly ascending order (each higher than the last)",
+        difficulty: Difficulty.HARD,
+        initialHandSize: 4,
+
+        checkWin(encounter) {
+            if (encounter.playedCards.length < 3) return false;
+
+            // Check if all cards are in ascending order
+            for (let i = 1; i < encounter.playedCards.length; i++) {
+                if (encounter.playedCards[i].value <= encounter.playedCards[i - 1].value) {
+                    return false;
+                }
+            }
+            return encounter.playedCards.length >= 3;
+        },
+
+        checkFail(encounter) {
+            // Fail if chain is broken
+            for (let i = 1; i < encounter.playedCards.length; i++) {
+                if (encounter.playedCards[i].value <= encounter.playedCards[i - 1].value) {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        getProgress(encounter) {
+            const played = encounter.playedCards.length;
+            if (played === 0) {
+                return `Play 3 cards in ascending order`;
+            }
+            const lastValue = encounter.playedCards[played - 1].value;
+            return `Chain: ${played}/3 cards | Last: ${lastValue} (next must be >${lastValue})`;
+        }
+    },
+
+    /**
+     * Two-Stage Challenge (Medium): Multi-stage encounter
+     */
+    TwoStage: {
+        name: "Two-Stage Lock",
+        description: "Stage 1: Sum to 5. Stage 2: Play a card matching first stage's suit",
+        difficulty: Difficulty.MEDIUM,
+        initialHandSize: 4,
+
+        initState(encounter) {
+            if (!encounter.customState) {
+                encounter.customState = {
+                    stage: 1,
+                    stage1Complete: false,
+                    stage1Suit: null
+                };
+            }
+        },
+
+        checkWin(encounter) {
+            this.initState(encounter);
+            const state = encounter.customState;
+
+            // Stage 1: Sum to 5
+            if (state.stage === 1) {
+                const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
+                if (sum === 5) {
+                    state.stage1Complete = true;
+                    state.stage1Suit = encounter.playedCards[0].suit; // Remember first suit
+                    state.stage = 2;
+                    state.stage1PlayedCount = encounter.playedCards.length;
+                    return false; // Not done yet, advance to stage 2
+                }
+            }
+
+            // Stage 2: Play a card matching stage 1's suit
+            if (state.stage === 2) {
+                const stage2Cards = encounter.playedCards.slice(state.stage1PlayedCount || 0);
+                return stage2Cards.some(card => card.suit === state.stage1Suit);
+            }
+
+            return false;
+        },
+
+        checkFail(encounter) {
+            this.initState(encounter);
+            const state = encounter.customState;
+
+            if (state.stage === 1) {
+                const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
+                return sum > 5;
+            }
+
+            // Stage 2: Fail if you play wrong suit
+            if (state.stage === 2) {
+                const stage2Cards = encounter.playedCards.slice(state.stage1PlayedCount || 0);
+                if (stage2Cards.length > 0) {
+                    // Fail if played a card that doesn't match
+                    return stage2Cards.every(card => card.suit !== state.stage1Suit);
+                }
+            }
+
+            return false;
+        },
+
+        getProgress(encounter) {
+            this.initState(encounter);
+            const state = encounter.customState;
+
+            if (state.stage === 1) {
+                const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
+                return `STAGE 1: Sum to 5 | Current: ${sum}/5`;
+            } else {
+                return `STAGE 2: Play a ${state.stage1Suit} card | Stage 1: ✓`;
+            }
+        }
+    },
+
+    /**
+     * High Card Duel (Medium): Play against an opponent
+     */
+    HighCardDuel: {
+        name: "High Card Duel",
+        description: "Best of 3 rounds: Play your highest card each round to beat opponent",
+        difficulty: Difficulty.MEDIUM,
+        initialHandSize: 3,
+
+        initState(encounter) {
+            if (!encounter.customState) {
+                // Generate opponent's cards (random values 1-3)
+                const opponentCards = [
+                    Math.floor(Math.random() * 3) + 1,
+                    Math.floor(Math.random() * 3) + 1,
+                    Math.floor(Math.random() * 3) + 1
+                ];
+                encounter.customState = {
+                    opponentCards,
+                    currentRound: 0,
+                    playerWins: 0,
+                    opponentWins: 0,
+                    rounds: []
+                };
+            }
+        },
+
+        checkWin(encounter) {
+            this.initState(encounter);
+            const state = encounter.customState;
+
+            // Process rounds
+            const playerCards = encounter.playedCards;
+            while (state.currentRound < playerCards.length && state.currentRound < 3) {
+                const playerCard = playerCards[state.currentRound].value;
+                const opponentCard = state.opponentCards[state.currentRound];
+
+                const result = playerCard > opponentCard ? 'win' :
+                              playerCard < opponentCard ? 'lose' : 'tie';
+
+                if (state.rounds.length <= state.currentRound) {
+                    state.rounds.push({ playerCard, opponentCard, result });
+
+                    if (result === 'win') state.playerWins++;
+                    if (result === 'lose') state.opponentWins++;
+                }
+
+                state.currentRound++;
+            }
+
+            return state.playerWins >= 2;
+        },
+
+        checkFail(encounter) {
+            this.initState(encounter);
+            const state = encounter.customState;
+
+            // Check if we've processed all rounds
+            this.checkWin(encounter);
+
+            return state.opponentWins >= 2;
+        },
+
+        getProgress(encounter) {
+            this.initState(encounter);
+            const state = encounter.customState;
+
+            const roundsPlayed = state.rounds.length;
+            if (roundsPlayed === 0) {
+                return `Round 1/3 | Play your highest card!`;
+            }
+
+            const lastRound = state.rounds[roundsPlayed - 1];
+            const resultText = lastRound.result === 'win' ? '✓ WIN' :
+                              lastRound.result === 'lose' ? '✗ LOSE' : '- TIE';
+
+            return `Round ${roundsPlayed}/3: ${lastRound.playerCard} vs ${lastRound.opponentCard} ${resultText} | Score: ${state.playerWins}-${state.opponentWins}`;
+        }
+    },
+
+    /**
+     * Exact Budget (Medium): Spend exactly your budget
+     */
+    ExactBudget: {
+        name: "Card Auction",
+        description: "Cards cost their value. Spend EXACTLY 7 points (no more, no less)",
+        difficulty: Difficulty.MEDIUM,
+        initialHandSize: 4,
+        budget: 7,
+
+        checkWin(encounter) {
+            const spent = encounter.playedCards.reduce((sum, card) => sum + card.value, 0);
+            return spent === this.budget;
+        },
+
+        checkFail(encounter) {
+            const spent = encounter.playedCards.reduce((sum, card) => sum + card.value, 0);
+            return spent > this.budget;
+        },
+
+        getProgress(encounter) {
+            const spent = encounter.playedCards.reduce((sum, card) => sum + card.value, 0);
+            const remaining = this.budget - spent;
+            return `Budget: ${spent}/${this.budget} spent | ${remaining} remaining`;
+        }
     }
 };
 
