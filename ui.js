@@ -73,11 +73,20 @@ class UI {
         }
 
         // Update encounter state classes
-        encounterEl.classList.remove('completed', 'failed');
+        encounterEl.classList.remove('completed', 'failed', 'locked');
+        const statusEl = encounterEl.querySelector('.encounter-status');
+
         if (encounter.completed) {
             encounterEl.classList.add('completed');
+            statusEl.textContent = '✓ COMPLETE';
+            statusEl.className = 'encounter-status status-complete';
         } else if (encounter.failed) {
-            encounterEl.classList.add('failed');
+            encounterEl.classList.add('failed', 'locked');
+            statusEl.textContent = '🔒 LOCKED';
+            statusEl.className = 'encounter-status status-locked';
+        } else {
+            statusEl.textContent = '';
+            statusEl.className = 'encounter-status';
         }
 
         // Update header
@@ -100,16 +109,21 @@ class UI {
 
         if (encounter.completed) {
             completeBtn.style.display = 'inline-block';
+            completeBtn.textContent = 'Collect Rewards';
             drawBtn.disabled = true;
             abandonBtn.style.display = 'none';
         } else if (encounter.failed) {
             completeBtn.style.display = 'none';
             drawBtn.disabled = true;
-            abandonBtn.textContent = 'Remove';
+            abandonBtn.disabled = true;
+            abandonBtn.textContent = 'Locked';
+            abandonBtn.style.display = 'inline-block';
         } else {
             completeBtn.style.display = 'none';
             drawBtn.disabled = false;
+            abandonBtn.disabled = false;
             abandonBtn.textContent = 'Abandon';
+            abandonBtn.style.display = 'inline-block';
         }
     }
 
