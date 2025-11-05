@@ -230,6 +230,72 @@ const EncounterTypes = {
                 return `Played ${played} cards`;
             }
         }
+    },
+
+    /**
+     * BOSS: All In - Play all cards from hand AND achieve sum target
+     */
+    BossAllIn: {
+        name: "Final Lock: All In",
+        description: "Play ALL cards in your hand AND make them sum to exactly 9",
+        difficulty: Difficulty.BOSS,
+        initialHandSize: 4,
+        targetSum: 9,
+
+        checkWin(encounter) {
+            // Must have empty hand AND correct sum
+            return encounter.hand.length === 0 &&
+                   encounter.playedCards.reduce((sum, card) => sum + card.value, 0) === this.targetSum;
+        },
+
+        checkFail(encounter) {
+            // Fail if you've played all cards but don't have correct sum
+            if (encounter.hand.length === 0) {
+                const sum = encounter.playedCards.reduce((s, card) => s + card.value, 0);
+                return sum !== this.targetSum;
+            }
+            return false;
+        },
+
+        getProgress(encounter) {
+            const sum = encounter.playedCards.reduce((s, card) => s + card.value, 0);
+            return `Hand: ${encounter.hand.length} | Sum: ${sum}/${this.targetSum} | Must play ALL cards!`;
+        }
+    },
+
+    /**
+     * BOSS: Perfect Sequence - Play A, 2, 3 in order
+     */
+    BossPerfectSequence: {
+        name: "Final Lock: Sequence",
+        description: "Play cards in exact sequence: A, then 2, then 3",
+        difficulty: Difficulty.BOSS,
+        initialHandSize: 4,
+
+        checkWin(encounter) {
+            if (encounter.playedCards.length !== 3) return false;
+            return encounter.playedCards[0].rank === 'A' &&
+                   encounter.playedCards[1].rank === '2' &&
+                   encounter.playedCards[2].rank === '3';
+        },
+
+        checkFail(encounter) {
+            // Fail if sequence is broken
+            if (encounter.playedCards.length >= 1 && encounter.playedCards[0].rank !== 'A') return true;
+            if (encounter.playedCards.length >= 2 && encounter.playedCards[1].rank !== '2') return true;
+            if (encounter.playedCards.length >= 3) {
+                return !this.checkWin(encounter);
+            }
+            return false;
+        },
+
+        getProgress(encounter) {
+            const needed = ['A', '2', '3'];
+            const progress = needed.slice(0, encounter.playedCards.length)
+                .map((rank, i) => encounter.playedCards[i]?.rank === rank ? '✓' : '✗')
+                .join(' ');
+            return `Sequence: ${progress || 'None'} | Next: ${needed[encounter.playedCards.length] || 'Done!'}`;
+        }
     }
 };
 

@@ -139,6 +139,8 @@ class Game {
         this.encountersCleared = 0;
         this.encountersNeededForBoss = 6;
         this.bossDefeated = false;
+        this.bossDeclineCount = 0; // Track how many times player declined boss
+        this.maxBossDeclines = 2;
 
         this.ui = new UI(this);
     }
@@ -168,18 +170,55 @@ class Game {
     }
 
     generateEncounterOptions(count) {
-        const typeNames = Object.keys(EncounterTypes);
+        const bossAvailable = this.encountersCleared >= this.encountersNeededForBoss;
+        const mustFightBoss = bossAvailable && this.bossDeclineCount >= this.maxBossDeclines;
+
+        // If must fight boss, only offer boss encounters
+        if (mustFightBoss) {
+            const bossEncounters = Object.keys(EncounterTypes)
+                .filter(key => EncounterTypes[key].difficulty === Difficulty.BOSS)
+                .map(key => EncounterTypes[key]);
+
+            return bossEncounters.slice(0, count);
+        }
+
+        // Get non-boss encounters
+        const normalEncounters = Object.keys(EncounterTypes)
+            .filter(key => EncounterTypes[key].difficulty !== Difficulty.BOSS)
+            .map(key => EncounterTypes[key]);
+
         const options = [];
 
+        // If boss available (but not mandatory), include 1 boss option
+        if (bossAvailable) {
+            const bossEncounters = Object.keys(EncounterTypes)
+                .filter(key => EncounterTypes[key].difficulty === Difficulty.BOSS)
+                .map(key => EncounterTypes[key]);
+
+            const randomBoss = bossEncounters[Math.floor(Math.random() * bossEncounters.length)];
+            options.push(randomBoss);
+            count--; // One less normal encounter to generate
+        }
+
+        // Fill remaining slots with normal encounters
         for (let i = 0; i < count; i++) {
-            const randomType = EncounterTypes[typeNames[Math.floor(Math.random() * typeNames.length)]];
+            const randomType = normalEncounters[Math.floor(Math.random() * normalEncounters.length)];
             options.push(randomType);
         }
 
-        return options;
+        // Shuffle the options so boss isn't always in same position
+        return options.sort(() => Math.random() - 0.5);
     }
 
     startNewEncounter(encounterType) {
+        // Track boss decline if applicable
+        const bossAvailable = this.encountersCleared >= this.encountersNeededForBoss;
+        const choseNonBoss = encounterType.difficulty !== Difficulty.BOSS;
+
+        if (bossAvailable && choseNonBoss && !this.bossDefeated) {
+            this.bossDeclineCount++;
+        }
+
         // encounterType should be one of the EncounterTypes
         const encounterId = this.nextEncounterId++;
         const encounter = new Encounter(encounterId, encounterType);
@@ -364,6 +403,7 @@ class Game {
         // Reset progression
         this.encountersCleared = 0;
         this.bossDefeated = false;
+        this.bossDeclineCount = 0;
 
         this.ui.reset();
         this.ui.updateGameStats();
