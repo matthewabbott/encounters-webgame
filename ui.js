@@ -25,9 +25,9 @@ class UI {
     }
 
     attachEventListeners() {
-        // New encounter button
+        // New encounter button - show selection screen
         document.getElementById('new-encounter-btn').addEventListener('click', () => {
-            this.game.startNewEncounter();
+            this.game.showEncounterSelection();
         });
 
         // Reset game button
@@ -65,6 +65,7 @@ class UI {
             // Create new encounter element
             encounterEl = this.encounterTemplate.content.cloneNode(true).querySelector('.encounter');
             encounterEl.setAttribute('data-encounter-id', encounter.id);
+            encounterEl.classList.add(`difficulty-${encounter.type.difficulty}`);
             this.encountersContainer.appendChild(encounterEl);
 
             // Attach encounter-specific event listeners
@@ -172,6 +173,46 @@ class UI {
             encounterEl.remove();
         }
         this.updateGameStats();
+    }
+
+    showEncounterSelection(encounterOptions) {
+        // Create and show modal with 3 encounter options
+        const modal = document.getElementById('encounter-selection-modal');
+        const optionsContainer = document.getElementById('encounter-options');
+
+        // Clear previous options
+        optionsContainer.innerHTML = '';
+
+        // Create option cards
+        encounterOptions.forEach((encounterType, index) => {
+            const optionEl = document.createElement('div');
+            optionEl.className = `encounter-option difficulty-${encounterType.difficulty}`;
+            optionEl.innerHTML = `
+                <div class="option-header">
+                    <h3>${encounterType.name}</h3>
+                    <span class="difficulty-badge">${encounterType.difficulty.toUpperCase()}</span>
+                </div>
+                <p class="option-description">${encounterType.description}</p>
+                <p class="option-details">Initial hand: ${encounterType.initialHandSize} cards</p>
+                <button class="btn btn-primary select-encounter-btn">Select</button>
+            `;
+
+            // Add click handler
+            optionEl.querySelector('.select-encounter-btn').addEventListener('click', () => {
+                this.game.startNewEncounter(encounterType);
+                this.hideEncounterSelection();
+            });
+
+            optionsContainer.appendChild(optionEl);
+        });
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    hideEncounterSelection() {
+        const modal = document.getElementById('encounter-selection-modal');
+        modal.style.display = 'none';
     }
 
     reset() {

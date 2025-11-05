@@ -1,4 +1,4 @@
-import { EncounterTypes } from './encounters.js';
+import { EncounterTypes, Difficulty } from './encounters.js';
 import { UI } from './ui.js';
 
 /**
@@ -137,28 +137,43 @@ class Game {
         this.ui = new UI(this);
     }
 
-    startNewEncounter() {
+    showEncounterSelection() {
         // Check if we have available encounter slots
         if (this.encounters.size >= this.maxEncounterSlots) {
             alert('All encounter slots are full! Complete or abandon an encounter first.');
-            return null;
+            return;
         }
 
         // Check if we have enough cards left
-        if (this.deck.size < 3) {
-            alert('Not enough cards in deck! Complete some encounters first.');
-            return null;
+        if (this.deck.size < 2) {
+            alert('Not enough cards in deck!');
+            return;
         }
 
-        // Pick a random encounter type
-        const typeNames = Object.keys(EncounterTypes);
-        const randomType = EncounterTypes[typeNames[Math.floor(Math.random() * typeNames.length)]];
+        // Generate 3 encounter options
+        const options = this.generateEncounterOptions(3);
+        this.ui.showEncounterSelection(options);
+    }
 
+    generateEncounterOptions(count) {
+        const typeNames = Object.keys(EncounterTypes);
+        const options = [];
+
+        for (let i = 0; i < count; i++) {
+            const randomType = EncounterTypes[typeNames[Math.floor(Math.random() * typeNames.length)]];
+            options.push(randomType);
+        }
+
+        return options;
+    }
+
+    startNewEncounter(encounterType) {
+        // encounterType should be one of the EncounterTypes
         const encounterId = this.nextEncounterId++;
-        const encounter = new Encounter(encounterId, randomType);
+        const encounter = new Encounter(encounterId, encounterType);
 
         // Draw initial cards
-        const initialCards = this.deck.draw(randomType.initialHandSize || 5);
+        const initialCards = this.deck.draw(encounterType.initialHandSize || 3);
         initialCards.forEach(card => encounter.addCardToHand(card));
 
         this.encounters.set(encounterId, encounter);
