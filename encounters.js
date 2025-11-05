@@ -3,21 +3,30 @@
  * Each encounter type defines:
  * - name: Display name
  * - description: What the player needs to do
+ * - difficulty: 'easy', 'medium', 'hard', or 'boss'
  * - initialHandSize: How many cards to draw at start
  * - checkWin: Function to check if encounter is won
  * - checkFail: Function to check if encounter is failed
  * - getProgress: Function to get progress string
  */
 
+const Difficulty = {
+    EASY: 'easy',
+    MEDIUM: 'medium',
+    HARD: 'hard',
+    BOSS: 'boss'
+};
+
 const EncounterTypes = {
     /**
-     * Sum Target: Play cards that sum to exactly a target value
+     * Sum Target (Easy): Play cards that sum to exactly a small target value
      */
-    SumTarget: {
+    SumTargetEasy: {
         name: "Sum Target",
-        description: "Play cards that sum to exactly 21",
-        initialHandSize: 5,
-        targetSum: 21,
+        description: "Play cards that sum to exactly 6",
+        difficulty: Difficulty.EASY,
+        initialHandSize: 3,
+        targetSum: 6,
 
         checkWin(encounter) {
             const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
@@ -36,40 +45,68 @@ const EncounterTypes = {
     },
 
     /**
-     * High Card: Play the highest value card possible (ends when you play a card)
+     * Sum Target (Medium): Play cards that sum to exactly a target value
      */
-    HighCard: {
-        name: "High Card",
-        description: "Draw cards and play when you have a King (value 13)",
-        initialHandSize: 3,
+    SumTarget: {
+        name: "Sum Target",
+        description: "Play cards that sum to exactly 9",
+        difficulty: Difficulty.MEDIUM,
+        initialHandSize: 4,
+        targetSum: 9,
 
         checkWin(encounter) {
-            return encounter.playedCards.some(card => card.value === 13);
+            const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
+            return sum === this.targetSum;
         },
 
         checkFail(encounter) {
-            // Fail if you play 3 cards without hitting a King
-            return encounter.playedCards.length >= 3 && !this.checkWin(encounter);
+            const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
+            return sum > this.targetSum;
+        },
+
+        getProgress(encounter) {
+            const sum = encounter.playedCards.reduce((acc, card) => acc + card.value, 0);
+            return `Current sum: ${sum} / ${this.targetSum} (${encounter.playedCards.length} cards played)`;
+        }
+    },
+
+    /**
+     * High Card (Easy): Play your highest value card
+     */
+    HighCard: {
+        name: "High Card",
+        description: "Play a card with value 3",
+        difficulty: Difficulty.EASY,
+        initialHandSize: 2,
+
+        checkWin(encounter) {
+            return encounter.playedCards.some(card => card.value === 3);
+        },
+
+        checkFail(encounter) {
+            // Fail if you play 2 cards without hitting a 3
+            return encounter.playedCards.length >= 2 && !this.checkWin(encounter);
         },
 
         getProgress(encounter) {
             const maxPlayed = encounter.playedCards.length > 0
                 ? Math.max(...encounter.playedCards.map(c => c.value))
                 : 0;
-            return `Cards played: ${encounter.playedCards.length}/3 | Highest: ${maxPlayed}`;
+            return `Cards played: ${encounter.playedCards.length}/2 | Highest: ${maxPlayed}`;
         }
     },
 
     /**
-     * Color Match: Play 5 cards of the same color
+     * Color Match (Medium): Play 3 cards of the same color
      */
     ColorMatch: {
         name: "Color Match",
-        description: "Play 5 cards of the same color (all red or all black)",
-        initialHandSize: 5,
+        description: "Play 3 cards of the same color (all red or all black)",
+        difficulty: Difficulty.MEDIUM,
+        initialHandSize: 3,
 
         checkWin(encounter) {
-            if (encounter.playedCards.length < 5) return false;
+            if (encounter.playedCards.length < 3) return false;
 
             const firstColor = encounter.playedCards[0].color;
             return encounter.playedCards.every(card => card.color === firstColor);
@@ -81,8 +118,8 @@ const EncounterTypes = {
             const colors = encounter.playedCards.map(c => c.color);
             const uniqueColors = new Set(colors);
 
-            // If we have both colors and 5+ cards, we've failed
-            return uniqueColors.size > 1 && encounter.playedCards.length >= 5;
+            // If we have both colors and 3+ cards, we've failed
+            return uniqueColors.size > 1 && encounter.playedCards.length >= 3;
         },
 
         getProgress(encounter) {
@@ -92,57 +129,58 @@ const EncounterTypes = {
                 return acc;
             }, {});
 
-            return `Cards played: ${encounter.playedCards.length}/5 | Red: ${colorCounts.red || 0}, Black: ${colorCounts.black || 0}`;
+            return `Cards played: ${encounter.playedCards.length}/3 | Red: ${colorCounts.red || 0}, Black: ${colorCounts.black || 0}`;
         }
     },
 
     /**
-     * Avoid Tricks: Play all your cards without hitting face cards
+     * Play All (Medium): Play all your cards
      */
-    AvoidTricks: {
-        name: "Avoid Tricks",
-        description: "Play all cards in your hand, but avoid playing face cards (J, Q, K)",
-        initialHandSize: 4,
+    PlayAll: {
+        name: "Play All",
+        description: "Play all cards in your hand",
+        difficulty: Difficulty.MEDIUM,
+        initialHandSize: 3,
 
         checkWin(encounter) {
-            // Win if hand is empty and we haven't played any face cards
-            return encounter.hand.length === 0 &&
-                   !encounter.playedCards.some(card => card.value >= 11);
+            // Win if hand is empty
+            return encounter.hand.length === 0;
         },
 
         checkFail(encounter) {
-            // Fail if we play any face card
-            return encounter.playedCards.some(card => card.value >= 11);
+            // Can't fail this one
+            return false;
         },
 
         getProgress(encounter) {
-            const faceCardsInHand = encounter.hand.filter(c => c.value >= 11).length;
-            return `Hand: ${encounter.hand.length} cards | Face cards in hand: ${faceCardsInHand} | Played: ${encounter.playedCards.length}`;
+            return `Hand: ${encounter.hand.length} cards remaining | Played: ${encounter.playedCards.length}`;
         }
     },
 
     /**
-     * Suit Run: Play 4 cards of the same suit
+     * Suit Run (Hard): Play 3 cards of the same suit
      */
     SuitRun: {
         name: "Suit Run",
-        description: "Play 4 cards of the same suit",
-        initialHandSize: 5,
+        description: "Play 3 cards of the same suit",
+        difficulty: Difficulty.HARD,
+        initialHandSize: 3,
 
         checkWin(encounter) {
-            if (encounter.playedCards.length < 4) return false;
+            if (encounter.playedCards.length < 3) return false;
 
             const suitCounts = encounter.playedCards.reduce((acc, card) => {
                 acc[card.suit] = (acc[card.suit] || 0) + 1;
                 return acc;
             }, {});
 
-            return Object.values(suitCounts).some(count => count >= 4);
+            return Object.values(suitCounts).some(count => count >= 3);
         },
 
         checkFail(encounter) {
-            // Can't fail this one, just takes longer
-            return false;
+            // Fail if you've played 3 cards and don't have 3 of same suit
+            if (encounter.playedCards.length < 3) return false;
+            return !this.checkWin(encounter);
         },
 
         getProgress(encounter) {
@@ -155,17 +193,18 @@ const EncounterTypes = {
                 return count > max.count ? { suit, count } : max;
             }, { suit: 'none', count: 0 });
 
-            return `Best suit: ${maxSuit.suit} (${maxSuit.count}/4 cards)`;
+            return `Best suit: ${maxSuit.suit} (${maxSuit.count}/3 cards)`;
         }
     },
 
     /**
-     * Pair Up: Play exactly 2 cards with the same rank
+     * Pair Up (Hard): Play exactly 2 cards with the same rank
      */
     PairUp: {
         name: "Pair Up",
         description: "Play exactly 2 cards with the same rank, then stop",
-        initialHandSize: 4,
+        difficulty: Difficulty.HARD,
+        initialHandSize: 3,
 
         checkWin(encounter) {
             if (encounter.playedCards.length !== 2) return false;
@@ -194,4 +233,4 @@ const EncounterTypes = {
     }
 };
 
-export { EncounterTypes };
+export { EncounterTypes, Difficulty };
