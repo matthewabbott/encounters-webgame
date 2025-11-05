@@ -134,6 +134,12 @@ class Game {
         this.encounters = new Map();
         this.nextEncounterId = 1;
         this.maxEncounterSlots = 2; // MVP: Start with 2 slots
+
+        // Run progression tracking
+        this.encountersCleared = 0;
+        this.encountersNeededForBoss = 6;
+        this.bossDefeated = false;
+
         this.ui = new UI(this);
     }
 
@@ -291,9 +297,23 @@ class Game {
             return false;
         }
 
+        // Check if this was a boss encounter
+        const wasBoss = encounter.type.difficulty === Difficulty.BOSS;
+
         // Return all cards to deck
         const cards = encounter.getAllCards();
         this.deck.returnCards(cards);
+
+        // Track progress
+        this.encountersCleared++;
+
+        if (wasBoss) {
+            this.bossDefeated = true;
+            // Victory!
+            setTimeout(() => {
+                this.endRun(true);
+            }, 500);
+        }
 
         // Remove encounter
         this.encounters.delete(encounterId);
@@ -340,6 +360,11 @@ class Game {
         this.encounters.clear();
         this.nextEncounterId = 1;
         this.maxEncounterSlots = 2; // Reset to starting slots
+
+        // Reset progression
+        this.encountersCleared = 0;
+        this.bossDefeated = false;
+
         this.ui.reset();
         this.ui.updateGameStats();
     }
@@ -354,6 +379,15 @@ class Game {
 
     getDeckContents() {
         return this.deck.getContents();
+    }
+
+    getRunProgress() {
+        return {
+            cleared: this.encountersCleared,
+            needed: this.encountersNeededForBoss,
+            bossAvailable: this.encountersCleared >= this.encountersNeededForBoss,
+            bossDefeated: this.bossDefeated
+        };
     }
 }
 

@@ -12,6 +12,7 @@ class UI {
         // Main elements
         this.encountersContainer = document.getElementById('encounters-container');
         this.emptyState = document.getElementById('empty-state');
+        this.runProgressEl = document.getElementById('run-progress');
         this.deckCountEl = document.getElementById('deck-count');
         this.activeEncountersEl = document.getElementById('active-encounters');
         this.deckContentsEl = document.getElementById('deck-contents');
@@ -37,6 +38,15 @@ class UI {
     }
 
     updateGameStats() {
+        // Update run progress
+        const progress = this.game.getRunProgress();
+        this.runProgressEl.textContent = `${progress.cleared}/${progress.needed}`;
+        if (progress.bossAvailable && !progress.bossDefeated) {
+            this.runProgressEl.classList.add('boss-ready');
+        } else {
+            this.runProgressEl.classList.remove('boss-ready');
+        }
+
         this.deckCountEl.textContent = this.game.getDeckSize();
         this.activeEncountersEl.textContent = this.game.getActiveEncounterCount();
 

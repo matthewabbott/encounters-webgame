@@ -73,6 +73,20 @@ header h1 {
     color: var(--warning-color);
 }
 
+.stat-value.boss-ready {
+    color: #9333ea;
+    animation: glow 2s infinite;
+}
+
+@keyframes glow {
+    0%, 100% {
+        text-shadow: 0 0 5px #9333ea;
+    }
+    50% {
+        text-shadow: 0 0 20px #9333ea, 0 0 30px #a855f7;
+    }
+}
+
 /* Main layout */
 .main-content {
     display: grid;
