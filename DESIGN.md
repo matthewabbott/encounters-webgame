@@ -6,7 +6,72 @@ You're a netrunner infiltrating a corporate blacksite. Each "encounter" is a pie
 
 ---
 
-## Core Gameplay Loop (Single Run)
+## REFINED MVP DESIGN (Current Target)
+
+### Starting State
+- **Starting deck**: 12 cards (A-3 of each suit: ♠♥♣♦)
+- **Encounter slots**: 2 slots
+- **Inventory slots**: 0 (must be earned)
+- **Goal**: Clear 6-8 encounters, then defeat boss encounter
+
+### Encounter Progression
+1. Choose 1 of 3 randomly offered encounters
+2. After clearing 6 encounters, boss encounters become available
+3. **Boss Selection**: Can be offered as one of the 3 choices, can decline up to 2 times
+4. After 2 declines, boss is your only option
+
+### Reward System by Difficulty
+
+**Easy Encounters (Green)**
+- Auto-receive 1 random card (no choice)
+- Simplest conditions
+
+**Medium Encounters (Yellow)**
+- Pick 1 of 3 cards
+- Moderate complexity
+
+**Hard Encounters (Red)**
+- Pick 1 of 3 cards
+- PLUS pick 1 of 3 bonus rewards (slot upgrade, consumable, card modification)
+- Complex conditions
+
+**Boss Encounters (Black)**
+- Toughest challenges
+- Best rewards (multiple picks or rare items)
+- Run ends on defeat
+
+### Failure & Health System
+
+**Slot Lockup = "Health Bar"**
+- Failed encounters **lock the slot** with cards trapped inside
+- Locked slots cannot be used for new encounters
+- Cards in locked encounters are unavailable
+- Visual indicator: Red border, chain icon, "LOCKED" label
+
+**Deadlock = Game Over**
+- When ALL slots are locked → "DEADLOCK DETECTED - JACK OUT?"
+- Player can still use consumables to break free
+- If truly stuck with no recovery options, must abort run
+
+**Recovery Mechanics** (via consumables/rewards)
+- **Unlock Exploit**: Auto-complete a failed encounter
+- **Card Extraction**: Pull cards out of locked encounter without completing it
+- **Encounter Breaker**: Destroy locked encounter (permanently lose those cards)
+- **Card Obliteration**: Destroy specific cards (might destroy encounter if emptied)
+
+### End-of-Run Systems (Future)
+- **Stats screen**: Encounters cleared, cards played, run duration, etc.
+- **Meta rewards**: Even failed/jacked-out runs give some progression
+- **Achievements**: "Broke a deadlock", "Beat boss with 12-card deck", etc.
+
+### Future Game Modes (Post-MVP)
+- **Endless Mode**: See how many encounters you can clear
+- **Speed Run**: Time-limited infiltration
+- **Challenge Modes**: Special restrictions or modifiers
+
+---
+
+## Core Gameplay Loop (Single Run) - ORIGINAL BRAINSTORM
 
 ### Starting State
 - **Small starting deck**: 15-20 cards (subset of full 52-card deck)
