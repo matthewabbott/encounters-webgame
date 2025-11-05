@@ -91,8 +91,8 @@ class UI {
     }
 
     updateUpcomingEncounters() {
-        // Generate preview of next 3 encounters
-        const options = this.game.generateEncounterOptions(3);
+        // Use pre-generated next encounter options
+        const options = this.game.nextEncounterOptions;
         this.upcomingEncountersEl.innerHTML = '';
 
         options.forEach((encounterType, index) => {
@@ -184,23 +184,46 @@ class UI {
 
     renderHand(encounterEl, encounter) {
         const cardsContainer = encounterEl.querySelector('.cards-container');
-        cardsContainer.innerHTML = '';
 
-        // Render hand cards
-        encounter.hand.forEach(card => {
-            const cardEl = this.createCardElement(card, false);
-            cardEl.addEventListener('click', () => {
-                if (!encounter.completed && !encounter.failed) {
-                    this.game.playCardInEncounter(encounter.id, card.id);
-                }
-            });
-            cardsContainer.appendChild(cardEl);
+        // Create a combined list of all cards with their state
+        const allCards = [
+            ...encounter.hand.map(card => ({ card, played: false })),
+            ...encounter.playedCards.map(card => ({ card, played: true }))
+        ];
+
+        // Update existing cards or create new ones
+        const existingCards = Array.from(cardsContainer.querySelectorAll('.card'));
+
+        // Remove cards that no longer exist
+        existingCards.forEach(cardEl => {
+            const cardId = cardEl.getAttribute('data-card-id');
+            const stillExists = allCards.some(item => item.card.id === cardId);
+            if (!stillExists) {
+                cardEl.remove();
+            }
         });
 
-        // Render played cards (slightly faded)
-        encounter.playedCards.forEach(card => {
-            const cardEl = this.createCardElement(card, true);
-            cardsContainer.appendChild(cardEl);
+        // Add or update cards
+        allCards.forEach((item) => {
+            let cardEl = cardsContainer.querySelector(`[data-card-id="${item.card.id}"]`);
+
+            if (!cardEl) {
+                // Create new card
+                cardEl = this.createCardElement(item.card, item.played);
+                if (!item.played && !encounter.completed && !encounter.failed) {
+                    cardEl.addEventListener('click', () => {
+                        this.game.playCardInEncounter(encounter.id, item.card.id);
+                    });
+                }
+                cardsContainer.appendChild(cardEl);
+            } else {
+                // Update existing card's played state
+                if (item.played) {
+                    cardEl.classList.add('played');
+                } else {
+                    cardEl.classList.remove('played');
+                }
+            }
         });
     }
 

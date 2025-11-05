@@ -142,7 +142,16 @@ class Game {
         this.bossDeclineCount = 0; // Track how many times player declined boss
         this.maxBossDeclines = 2;
 
+        // Pre-generated encounter options (for preview)
+        this.nextEncounterOptions = [];
+        this.generateNextEncounterOptions();
+
         this.ui = new UI(this);
+    }
+
+    generateNextEncounterOptions() {
+        // Pre-generate the next encounter options for preview
+        this.nextEncounterOptions = this.generateEncounterOptions(3);
     }
 
     showEncounterSelection() {
@@ -164,9 +173,8 @@ class Game {
             return;
         }
 
-        // Generate 3 encounter options
-        const options = this.generateEncounterOptions(3);
-        this.ui.showEncounterSelection(options);
+        // Use pre-generated options
+        this.ui.showEncounterSelection(this.nextEncounterOptions);
     }
 
     generateEncounterOptions(count) {
@@ -229,6 +237,9 @@ class Game {
 
         this.encounters.set(encounterId, encounter);
         this.ui.renderEncounter(encounter);
+
+        // Generate new options for preview
+        this.generateNextEncounterOptions();
         this.ui.updateGameStats();
 
         return encounter;
@@ -450,6 +461,9 @@ class Game {
         this.encountersCleared = 0;
         this.bossDefeated = false;
         this.bossDeclineCount = 0;
+
+        // Regenerate next encounter options
+        this.generateNextEncounterOptions();
 
         this.ui.reset();
         this.ui.updateGameStats();
