@@ -140,7 +140,13 @@ class Game {
     showEncounterSelection() {
         // Check if we have available encounter slots
         if (this.encounters.size >= this.maxEncounterSlots) {
-            alert('All encounter slots are full! Complete or abandon an encounter first.');
+            // Check if this is a deadlock situation
+            const allFailed = Array.from(this.encounters.values()).every(enc => enc.failed);
+            if (allFailed) {
+                this.checkDeadlock();
+            } else {
+                alert('All encounter slots are full! Complete or abandon an encounter first.');
+            }
             return;
         }
 
@@ -235,11 +241,48 @@ class Game {
             encounter.failed = true;
             this.ui.renderEncounter(encounter);
             setTimeout(() => {
-                alert(`Encounter "${encounter.type.name}" failed!`);
+                alert(`Encounter "${encounter.type.name}" failed! Slot is now locked.`);
+                this.checkDeadlock();
             }, 100);
         } else {
             this.ui.renderEncounter(encounter);
         }
+    }
+
+    checkDeadlock() {
+        // Check if all encounters are failed (deadlock condition)
+        const allFailed = Array.from(this.encounters.values()).every(enc => enc.failed);
+        const hasEncounters = this.encounters.size > 0;
+
+        if (allFailed && hasEncounters) {
+            // Deadlock detected!
+            setTimeout(() => {
+                const jackOut = confirm(
+                    '⚠️ DEADLOCK DETECTED ⚠️\n\n' +
+                    'All encounter slots are locked with failed encounters.\n' +
+                    'You cannot progress further.\n\n' +
+                    'Jack out and end the run?'
+                );
+
+                if (jackOut) {
+                    this.endRun(false); // false = defeated/jacked out
+                }
+            }, 500);
+        }
+    }
+
+    endRun(victory) {
+        const message = victory
+            ? '🎉 VICTORY! You completed the run! 🎉'
+            : '💀 RUN ENDED 💀\n\nYou jacked out of the system.';
+
+        alert(message);
+
+        // For now, just reset the game
+        // TODO: Show stats screen and meta rewards
+        setTimeout(() => {
+            this.resetGame();
+        }, 100);
     }
 
     completeEncounter(encounterId) {
