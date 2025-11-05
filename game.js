@@ -40,7 +40,8 @@ class Deck {
 
     initializeDeck() {
         const suits = ['♠', '♥', '♣', '♦'];
-        const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        // MVP: Start with just 12 cards (A-3 of each suit)
+        const ranks = ['A', '2', '3'];
 
         this.cards = [];
         for (let suit of suits) {
@@ -132,10 +133,17 @@ class Game {
         this.deck = new Deck();
         this.encounters = new Map();
         this.nextEncounterId = 1;
+        this.maxEncounterSlots = 2; // MVP: Start with 2 slots
         this.ui = new UI(this);
     }
 
     startNewEncounter() {
+        // Check if we have available encounter slots
+        if (this.encounters.size >= this.maxEncounterSlots) {
+            alert('All encounter slots are full! Complete or abandon an encounter first.');
+            return null;
+        }
+
         // Check if we have enough cards left
         if (this.deck.size < 3) {
             alert('Not enough cards in deck! Complete some encounters first.');
@@ -273,6 +281,7 @@ class Game {
         this.deck = new Deck();
         this.encounters.clear();
         this.nextEncounterId = 1;
+        this.maxEncounterSlots = 2; // Reset to starting slots
         this.ui.reset();
         this.ui.updateGameStats();
     }
