@@ -17,9 +17,17 @@ class UI {
         this.activeEncountersEl = document.getElementById('active-encounters');
         this.deckContentsEl = document.getElementById('deck-contents');
 
+        // Progress elements
+        this.bossCountdownEl = document.getElementById('boss-countdown');
+        this.countdownValueEl = this.bossCountdownEl.querySelector('.countdown-value');
+        this.upcomingEncountersEl = document.getElementById('upcoming-encounters');
+
         // Templates
         this.encounterTemplate = document.getElementById('encounter-template');
         this.cardTemplate = document.getElementById('card-template');
+
+        // Generate initial upcoming encounters
+        this.upcomingEncounterOptions = [];
 
         // Update initial state
         this.updateGameStats();
@@ -47,6 +55,20 @@ class UI {
             this.runProgressEl.classList.remove('boss-ready');
         }
 
+        // Update boss countdown
+        const remaining = Math.max(0, progress.needed - progress.cleared);
+        this.countdownValueEl.textContent = remaining;
+
+        if (progress.bossAvailable && !progress.bossDefeated) {
+            this.bossCountdownEl.classList.add('boss-ready');
+            this.countdownValueEl.textContent = 'READY!';
+        } else {
+            this.bossCountdownEl.classList.remove('boss-ready');
+        }
+
+        // Update upcoming encounters preview
+        this.updateUpcomingEncounters();
+
         this.deckCountEl.textContent = this.game.getDeckSize();
         this.activeEncountersEl.textContent = this.game.getActiveEncounterCount();
 
@@ -66,6 +88,29 @@ class UI {
             this.emptyState.style.display = 'none';
             this.encountersContainer.style.display = 'grid';
         }
+    }
+
+    updateUpcomingEncounters() {
+        // Generate preview of next 3 encounters
+        const options = this.game.generateEncounterOptions(3);
+        this.upcomingEncountersEl.innerHTML = '';
+
+        options.forEach((encounterType, index) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = `encounter-card-preview difficulty-${encounterType.difficulty}`;
+
+            // Stack cards with offset
+            const offset = index * 15; // 15px offset per card
+            cardEl.style.transform = `translateX(${offset}px)`;
+            cardEl.style.zIndex = options.length - index; // Boss on bottom (lowest z-index)
+
+            cardEl.innerHTML = `
+                <div>${encounterType.difficulty.toUpperCase()}</div>
+                <div class="preview-type">${encounterType.name}</div>
+            `;
+
+            this.upcomingEncountersEl.appendChild(cardEl);
+        });
     }
 
     renderEncounter(encounter) {
