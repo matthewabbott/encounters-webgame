@@ -239,6 +239,60 @@ class UI {
         modal.style.display = 'none';
     }
 
+    showRewardSelection(encounterId, rewardCards, difficulty) {
+        const modal = document.getElementById('reward-selection-modal');
+        const titleEl = document.getElementById('reward-title');
+        const descEl = document.getElementById('reward-description');
+        const cardsContainer = document.getElementById('reward-cards');
+
+        // Update title and description based on difficulty
+        if (difficulty === 'easy') {
+            titleEl.textContent = '🎁 Reward Earned!';
+            descEl.textContent = 'You received a new card!';
+        } else if (difficulty === 'medium') {
+            titleEl.textContent = '🎁 Select Your Reward';
+            descEl.textContent = 'Choose 1 card to add to your deck:';
+        } else if (difficulty === 'hard') {
+            titleEl.textContent = '🎁 Select Your Reward';
+            descEl.textContent = 'Choose 1 card to add to your deck:';
+        } else if (difficulty === 'boss') {
+            titleEl.textContent = '🏆 VICTORY REWARD!';
+            descEl.textContent = 'Choose 1 powerful card to add to your deck:';
+        }
+
+        // Clear previous cards
+        cardsContainer.innerHTML = '';
+
+        // Create reward card elements
+        rewardCards.forEach((card) => {
+            const cardEl = this.createRewardCardElement(card);
+            cardEl.addEventListener('click', () => {
+                this.game.finalizeEncounterCompletion(encounterId, [card]);
+                this.hideRewardSelection();
+            });
+            cardsContainer.appendChild(cardEl);
+        });
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    createRewardCardElement(card) {
+        const cardEl = document.createElement('div');
+        cardEl.className = `reward-card ${card.color}`;
+        cardEl.innerHTML = `
+            <div class="reward-card-rank">${card.rank}</div>
+            <div class="reward-card-suit">${card.suit}</div>
+            <div class="reward-card-value">Value: ${card.value}</div>
+        `;
+        return cardEl;
+    }
+
+    hideRewardSelection() {
+        const modal = document.getElementById('reward-selection-modal');
+        modal.style.display = 'none';
+    }
+
     reset() {
         this.encountersContainer.innerHTML = '';
         this.updateGameStats();

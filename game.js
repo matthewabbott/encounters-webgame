@@ -330,11 +330,55 @@ class Game {
         }, 100);
     }
 
+    generateRewardCards(count) {
+        // Reward cards are cards not in starting deck (4-K)
+        const suits = ['♠', '♥', '♣', '♦'];
+        const rewardRanks = ['4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+        const rewardCards = [];
+        for (let i = 0; i < count; i++) {
+            const randomRank = rewardRanks[Math.floor(Math.random() * rewardRanks.length)];
+            const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+            rewardCards.push(new Card(randomRank, randomSuit));
+        }
+
+        return rewardCards;
+    }
+
     completeEncounter(encounterId) {
         const encounter = this.encounters.get(encounterId);
         if (!encounter || !encounter.completed) {
             return false;
         }
+
+        // Generate rewards based on difficulty
+        const difficulty = encounter.type.difficulty;
+        let rewardCards = [];
+
+        if (difficulty === Difficulty.EASY) {
+            // Auto-give 1 card
+            rewardCards = this.generateRewardCards(1);
+            this.finalizeEncounterCompletion(encounterId, rewardCards);
+        } else if (difficulty === Difficulty.MEDIUM) {
+            // Show choice of 3 cards
+            rewardCards = this.generateRewardCards(3);
+            this.ui.showRewardSelection(encounterId, rewardCards, difficulty);
+        } else if (difficulty === Difficulty.HARD) {
+            // Show choice of 3 cards (bonus rewards TODO for later)
+            rewardCards = this.generateRewardCards(3);
+            this.ui.showRewardSelection(encounterId, rewardCards, difficulty);
+        } else if (difficulty === Difficulty.BOSS) {
+            // Show choice of 5 cards
+            rewardCards = this.generateRewardCards(5);
+            this.ui.showRewardSelection(encounterId, rewardCards, difficulty);
+        }
+
+        return true;
+    }
+
+    finalizeEncounterCompletion(encounterId, selectedRewardCards) {
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter) return;
 
         // Check if this was a boss encounter
         const wasBoss = encounter.type.difficulty === Difficulty.BOSS;
@@ -342,6 +386,10 @@ class Game {
         // Return all cards to deck
         const cards = encounter.getAllCards();
         this.deck.returnCards(cards);
+
+        // Add reward cards to deck
+        selectedRewardCards.forEach(card => this.deck.cards.push(card));
+        this.deck.shuffle();
 
         // Track progress
         this.encountersCleared++;
@@ -358,8 +406,6 @@ class Game {
         this.encounters.delete(encounterId);
         this.ui.removeEncounter(encounterId);
         this.ui.updateGameStats();
-
-        return true;
     }
 
     abandonEncounter(encounterId) {

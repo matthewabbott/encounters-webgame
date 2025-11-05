@@ -581,6 +581,78 @@ footer {
     margin-top: 12px;
 }
 
+/* Reward Selection Modal */
+.reward-modal {
+    max-width: 900px;
+}
+
+.reward-description {
+    text-align: center;
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+.reward-cards {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.reward-card {
+    background: white;
+    border: 3px solid var(--card-black);
+    border-radius: 12px;
+    width: 140px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.reward-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    border-color: var(--primary-color);
+    border-width: 4px;
+}
+
+.reward-card-rank {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.reward-card-suit {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.reward-card-value {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    background: rgba(0, 0, 0, 0.05);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.reward-card.red .reward-card-rank,
+.reward-card.red .reward-card-suit {
+    color: var(--card-red);
+}
+
+.reward-card.black .reward-card-rank,
+.reward-card.black .reward-card-suit {
+    color: var(--card-black);
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
     .main-content {
