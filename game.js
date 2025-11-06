@@ -517,6 +517,11 @@ class Game {
         // Track progress
         this.encountersCleared++;
 
+        // Check if we should force boss into hand
+        if (!wasBoss && this.encountersCleared >= this.encountersNeededForBoss && !this.bossDefeated) {
+            this.forceBossIntoHand();
+        }
+
         if (wasBoss) {
             this.bossDefeated = true;
             // Victory!
@@ -525,11 +530,45 @@ class Game {
             }, 500);
         }
 
-        // Remove encounter
-        const slotId = encounter.slotId;
-        this.encounters.delete(encounterId);
-        this.ui.removeEncounter(encounterId, slotId);
+        // Unlock new slots based on this slot's completion
+        if (encounter.slotId !== null) {
+            this.ui.unlockSlotsFromSlot(encounter.slotId);
+        }
+
+        // Don't remove encounter - keep it on map as history
+        // Just free the slot for tracking purposes
+        const slot = this.ui.slots.find(s => s.id === encounter.slotId);
+        if (slot) {
+            slot.encounterId = null; // Mark slot as available (but encounter stays visually)
+        }
+
         this.ui.updateGameStats();
+    }
+
+    forceBossIntoHand() {
+        // Check if boss is already in hand
+        const hasBossInHand = this.encounterHand.some(enc => enc.difficulty === Difficulty.BOSS);
+        if (hasBossInHand) return;
+
+        // Find boss in deck
+        const bossIndex = this.encounterDeck.findIndex(enc => enc.difficulty === Difficulty.BOSS);
+        if (bossIndex === -1) return; // No boss in deck (already drawn or doesn't exist)
+
+        // Remove boss from deck
+        const boss = this.encounterDeck.splice(bossIndex, 1)[0];
+
+        // Add to hand (replace oldest card if hand is full)
+        if (this.encounterHand.length >= this.encounterHandSize) {
+            // Put the replaced card back at bottom of deck
+            const replaced = this.encounterHand.shift();
+            this.encounterDeck.push(replaced);
+        }
+
+        this.encounterHand.push(boss);
+        this.ui.updateEncounterHand();
+
+        // Show notification
+        this.ui.showNotification('⚠️ BOSS AVAILABLE', 'A boss encounter has been added to your hand!', '👾');
     }
 
     abandonEncounter(encounterId) {

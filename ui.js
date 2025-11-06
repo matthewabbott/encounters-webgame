@@ -44,7 +44,8 @@ class UI {
             panStartX: 0,
             panStartY: 0,
             nextZIndex: 100, // For managing encounter stacking order
-            selectedSlotId: null // For encounter placement
+            selectedSlotId: null, // For encounter placement
+            tutorialShown: false // Track if tutorial popup has been shown
         };
 
         // Apply initial transform
@@ -65,15 +66,15 @@ class UI {
     }
 
     initializeMapSlots() {
-        // Create a simple grid of slots for testing
-        // Later this will be procedurally generated
+        // Create a simple grid of slots with unlock progression
+        // Each slot has: id, position, status, encounterId, unlocks (array of slot IDs to unlock)
         this.slots = [
-            { id: 0, x: 200, y: 200, status: 'unlocked', encounterId: null },  // Starting slot
-            { id: 1, x: 400, y: 200, status: 'unlocked', encounterId: null },
-            { id: 2, x: 600, y: 200, status: 'locked', encounterId: null },
-            { id: 3, x: 400, y: 400, status: 'locked', encounterId: null },
-            { id: 4, x: 600, y: 400, status: 'locked', encounterId: null },
-            { id: 5, x: 800, y: 300, status: 'locked', encounterId: null }
+            { id: 0, x: 200, y: 200, status: 'unlocked', encounterId: null, unlocks: [1] },  // Starting slot unlocks slot 1
+            { id: 1, x: 400, y: 200, status: 'locked', encounterId: null, unlocks: [2, 3] },  // Slot 1 unlocks 2 and 3
+            { id: 2, x: 600, y: 200, status: 'locked', encounterId: null, unlocks: [4] },
+            { id: 3, x: 400, y: 400, status: 'locked', encounterId: null, unlocks: [4] },
+            { id: 4, x: 600, y: 400, status: 'locked', encounterId: null, unlocks: [5] },
+            { id: 5, x: 800, y: 300, status: 'locked', encounterId: null, unlocks: [] }  // Final slot
         ];
 
         this.slots.forEach((slot) => {
@@ -107,10 +108,13 @@ class UI {
             const result = this.game.playEncounterFromHand(this.mapState.selectedHandIndex, slotId);
             if (result) {
                 this.clearSlotSelection();
+                this.mapState.tutorialShown = true;
             }
         } else {
-            // No card selected - prompt to select from hand
-            this.game.ui.showNotification('Select an Encounter', 'Click a card from your hand at the bottom of the screen to place it here.', '💡');
+            // No card selected - prompt to select from hand (only first time)
+            if (!this.mapState.tutorialShown) {
+                this.game.ui.showNotification('Select an Encounter', 'Click a card from your hand at the bottom of the screen to place it here.', '💡');
+            }
         }
     }
 
@@ -127,6 +131,27 @@ class UI {
             return slot;
         }
         return null;
+    }
+
+    unlockSlotsFromSlot(slotId) {
+        // Find the slot that was completed
+        const completedSlot = this.slots.find(s => s.id === slotId);
+        if (!completedSlot || !completedSlot.unlocks) return;
+
+        // Unlock all slots in the unlocks array
+        completedSlot.unlocks.forEach(unlockId => {
+            const slotToUnlock = this.slots.find(s => s.id === unlockId);
+            if (slotToUnlock && slotToUnlock.status === 'locked') {
+                slotToUnlock.status = 'unlocked';
+
+                // Update the DOM element
+                const slotEl = document.querySelector(`[data-slot-id="${unlockId}"]`);
+                if (slotEl) {
+                    slotEl.classList.remove('locked');
+                    slotEl.classList.add('unlocked');
+                }
+            }
+        });
     }
 
     attachEventListeners() {
@@ -249,10 +274,13 @@ class UI {
             if (result) {
                 // Clear selection
                 this.clearSlotSelection();
+                this.mapState.tutorialShown = true;
             }
         } else {
-            // No slot selected - prompt user to select a slot
-            this.game.ui.showNotification('Select a Slot', 'Click an unlocked slot on the map to place this encounter.', '💡');
+            // No slot selected - prompt user to select a slot (only first time)
+            if (!this.mapState.tutorialShown) {
+                this.game.ui.showNotification('Select a Slot', 'Click an unlocked slot on the map to place this encounter.', '💡');
+            }
 
             // Highlight the selected card
             const cards = this.encounterHandEl.querySelectorAll('.encounter-card');
