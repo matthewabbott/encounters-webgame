@@ -53,7 +53,9 @@ class UI {
             slotDragStartX: 0,
             slotDragStartY: 0,
             slotOriginalX: 0,
-            slotOriginalY: 0
+            slotOriginalY: 0,
+            // Performance
+            redrawScheduled: false
         };
 
         // Apply initial transform
@@ -113,18 +115,27 @@ class UI {
         };
     }
 
-    // Check if a slot can be placed at the given position
-    canPlaceSlot(x, y, excludeSlotId = null) {
-        // Calculate how many grid cells the slot occupies
+    // Get grid cell range that a slot would occupy (helper to avoid duplication)
+    getGridRange(x, y) {
         const cellsWide = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
-        const cellsHigh = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
-
         const centerGrid = this.worldToGrid(x, y);
         const halfCells = Math.floor(cellsWide / 2);
 
+        return {
+            minGx: centerGrid.gridX - halfCells,
+            maxGx: centerGrid.gridX + halfCells,
+            minGy: centerGrid.gridY - halfCells,
+            maxGy: centerGrid.gridY + halfCells
+        };
+    }
+
+    // Check if a slot can be placed at the given position
+    canPlaceSlot(x, y, excludeSlotId = null) {
+        const range = this.getGridRange(x, y);
+
         // Check all cells that would be occupied
-        for (let gx = centerGrid.gridX - halfCells; gx <= centerGrid.gridX + halfCells; gx++) {
-            for (let gy = centerGrid.gridY - halfCells; gy <= centerGrid.gridY + halfCells; gy++) {
+        for (let gx = range.minGx; gx <= range.maxGx; gx++) {
+            for (let gy = range.minGy; gy <= range.maxGy; gy++) {
                 const key = `${gx},${gy}`;
                 const occupyingSlotId = this.spatialGrid.get(key);
 
@@ -139,14 +150,10 @@ class UI {
 
     // Mark grid cells as occupied by a slot
     occupyGridCells(x, y, slotId) {
-        const cellsWide = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
-        const cellsHigh = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+        const range = this.getGridRange(x, y);
 
-        const centerGrid = this.worldToGrid(x, y);
-        const halfCells = Math.floor(cellsWide / 2);
-
-        for (let gx = centerGrid.gridX - halfCells; gx <= centerGrid.gridX + halfCells; gx++) {
-            for (let gy = centerGrid.gridY - halfCells; gy <= centerGrid.gridY + halfCells; gy++) {
+        for (let gx = range.minGx; gx <= range.maxGx; gx++) {
+            for (let gy = range.minGy; gy <= range.maxGy; gy++) {
                 const key = `${gx},${gy}`;
                 this.spatialGrid.set(key, slotId);
             }
@@ -155,14 +162,10 @@ class UI {
 
     // Free grid cells occupied by a slot
     freeGridCells(x, y) {
-        const cellsWide = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
-        const cellsHigh = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+        const range = this.getGridRange(x, y);
 
-        const centerGrid = this.worldToGrid(x, y);
-        const halfCells = Math.floor(cellsWide / 2);
-
-        for (let gx = centerGrid.gridX - halfCells; gx <= centerGrid.gridX + halfCells; gx++) {
-            for (let gy = centerGrid.gridY - halfCells; gy <= centerGrid.gridY + halfCells; gy++) {
+        for (let gx = range.minGx; gx <= range.maxGx; gx++) {
+            for (let gy = range.minGy; gy <= range.maxGy; gy++) {
                 const key = `${gx},${gy}`;
                 this.spatialGrid.delete(key);
             }
@@ -338,13 +341,46 @@ class UI {
                 }
             }
 
-            // Strategy 4: Force placement (critical for progression - shouldn't happen with proper spacing)
+            // Strategy 4: Try much larger horizontal offsets (aggressive search)
             if (!positionFound) {
-                console.warn(`Forcing slot placement at (${finalX}, ${finalY}) - no valid position found!`);
-                positionFound = true;
+                for (let xOffset of [-240, 240, -320, 320, -400, 400]) {
+                    const testX = nextX + xOffset;
+                    for (const laneY of this.slotLanes) {
+                        if (this.canPlaceSlot(testX, laneY)) {
+                            finalX = testX;
+                            finalY = laneY;
+                            positionFound = true;
+                            console.log(`Found position with aggressive offset: (${finalX}, ${finalY})`);
+                            break;
+                        }
+                    }
+                    if (positionFound) break;
+                }
             }
 
-            // Add the unlock
+            // Strategy 5: Try farther forward (skip a column)
+            if (!positionFound) {
+                const farX = nextX + this.slotSpacing;
+                for (const laneY of this.slotLanes) {
+                    if (this.canPlaceSlot(farX, laneY)) {
+                        finalX = farX;
+                        finalY = laneY;
+                        positionFound = true;
+                        console.log(`Found position by skipping ahead: (${finalX}, ${finalY})`);
+                        break;
+                    }
+                }
+            }
+
+            // If still no valid position found, SKIP this slot (don't place invalid)
+            if (!positionFound) {
+                console.error(`CRITICAL: Cannot find valid position for slot ${nextId} near (${nextX}, ${chosenLane})`);
+                console.error('Skipping slot generation to prevent overlap. Consider increasing map size or slot spacing.');
+                this.nextSlotId--; // Return the ID since we didn't use it
+                continue; // Skip this unlock, don't add it
+            }
+
+            // Add the unlock (only if valid position found)
             slot.unlockData.push({
                 id: nextId,
                 x: finalX,
@@ -379,6 +415,49 @@ class UI {
         // Get list of lanes not occupied at this X position
         const occupied = this.occupiedLanes.get(x) || new Set();
         return this.slotLanes.filter(lane => !occupied.has(lane));
+    }
+
+    validateAndRecoverGridState() {
+        // Rebuild occupiedLanes from actual slot positions to fix desync
+        console.log('Validating grid state...');
+
+        const newOccupiedLanes = new Map();
+        let mismatchCount = 0;
+
+        // Rebuild from actual slot positions
+        for (const slot of this.slots) {
+            const colX = slot.x;
+            const laneY = slot.y;
+
+            if (!newOccupiedLanes.has(colX)) {
+                newOccupiedLanes.set(colX, new Set());
+            }
+            newOccupiedLanes.get(colX).add(laneY);
+
+            // Verify spatial grid is also correct
+            const centerGrid = this.worldToGrid(colX, laneY);
+            const key = `${centerGrid.gridX},${centerGrid.gridY}`;
+            if (this.spatialGrid.get(key) !== slot.id) {
+                console.warn(`Spatial grid mismatch at slot ${slot.id} (${colX}, ${laneY}), rebuilding...`);
+                mismatchCount++;
+                // Re-occupy in spatial grid
+                this.freeGridCells(colX, laneY);
+                this.occupyGridCells(colX, laneY, slot.id);
+            }
+        }
+
+        // Check if recovery is needed
+        const oldSize = Array.from(this.occupiedLanes.values()).reduce((sum, set) => sum + set.size, 0);
+        const newSize = Array.from(newOccupiedLanes.values()).reduce((sum, set) => sum + set.size, 0);
+
+        if (oldSize !== newSize || mismatchCount > 0) {
+            console.warn(`Grid state recovered: ${oldSize} -> ${newSize} entries, ${mismatchCount} spatial grid fixes`);
+            this.occupiedLanes = newOccupiedLanes;
+            return true; // State was recovered
+        }
+
+        console.log('Grid state OK');
+        return false; // No recovery needed
     }
 
     drawConnectionLine(parentSlot, childX, childY, unlocked = false) {
@@ -472,6 +551,9 @@ class UI {
     }
 
     unlockSlotsFromSlot(slotId) {
+        // Validate grid state before creating new slots
+        this.validateAndRecoverGridState();
+
         // Find the slot that was completed
         const completedSlot = this.slots.find(s => s.id === slotId);
         if (!completedSlot || !completedSlot.unlockData) return;
@@ -1135,8 +1217,14 @@ class UI {
             slotEl.style.top = `${newY}px`;
         }
 
-        // Redraw gridlines dynamically
-        this.drawAllConnections();
+        // Redraw gridlines dynamically (throttled with requestAnimationFrame)
+        if (!this.mapState.redrawScheduled) {
+            this.mapState.redrawScheduled = true;
+            requestAnimationFrame(() => {
+                this.drawAllConnections();
+                this.mapState.redrawScheduled = false;
+            });
+        }
     }
 
     handleSlotDragEnd(e) {
@@ -1166,6 +1254,28 @@ class UI {
 
         // Occupy new grid cells
         this.occupyGridCells(slot.x, slot.y, slot.id);
+
+        // CRITICAL FIX: Update occupiedLanes to match new position
+        const oldX = this.mapState.slotOriginalX;
+        const oldY = this.mapState.slotOriginalY;
+        const newX = slot.x;
+        const newY = slot.y;
+
+        if (oldX !== newX || oldY !== newY) {
+            // Remove from old position in occupiedLanes
+            if (this.occupiedLanes.has(oldX)) {
+                this.occupiedLanes.get(oldX).delete(oldY);
+                if (this.occupiedLanes.get(oldX).size === 0) {
+                    this.occupiedLanes.delete(oldX);
+                }
+            }
+
+            // Add to new position in occupiedLanes
+            if (!this.occupiedLanes.has(newX)) {
+                this.occupiedLanes.set(newX, new Set());
+            }
+            this.occupiedLanes.get(newX).add(newY);
+        }
 
         // Reset visual feedback
         const slotEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
