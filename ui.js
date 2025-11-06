@@ -69,11 +69,21 @@ class UI {
         // Procedural slot generation - start with first slot and generate more as needed
         this.slots = [];
         this.nextSlotId = 0;
-        this.slotSpacing = 250; // Horizontal spacing between slot columns
-        this.slotYVariation = 100; // How much Y can vary
+        this.slotSpacing = 250; // Base horizontal spacing between slot columns
 
-        // Create the starting slot
-        this.createSlot(0, 200, 300, 'unlocked');
+        // Define fixed Y "lanes" for slots to snap to
+        this.slotLanes = [175, 250, 325, 400, 475];
+
+        // Track which lanes are occupied at each X column
+        // Format: { x: Set(lanes) }
+        this.occupiedLanes = new Map();
+
+        // Track parent Y positions for horizontal staggering
+        // Format: { x: [parentY1, parentY2, ...] }
+        this.parentYAtColumn = new Map();
+
+        // Create the starting slot at middle lane
+        this.createSlot(0, 200, 325, 'unlocked');
     }
 
     createSlot(id, x, y, status = 'locked') {
@@ -92,6 +102,12 @@ class UI {
         };
 
         this.slots.push(slot);
+
+        // Mark this lane as occupied at this X position
+        if (!this.occupiedLanes.has(x)) {
+            this.occupiedLanes.set(x, new Set());
+        }
+        this.occupiedLanes.get(x).add(y);
 
         // Create DOM element
         const slotEl = document.createElement('div');
@@ -121,93 +137,114 @@ class UI {
     generateUnlockDataForSlot(slot) {
         // Each slot defines 1-3 new slots that will unlock
         const numUnlocks = Math.floor(Math.random() * 3) + 1; // 1-3 unlocks
-        const nextX = slot.x + this.slotSpacing;
 
+        // Calculate base X position with horizontal staggering
+        let nextX = slot.x + this.slotSpacing;
+
+        // Track parent Y positions at parent column for staggering
+        if (!this.parentYAtColumn.has(slot.x)) {
+            this.parentYAtColumn.set(slot.x, []);
+        }
+        const parentsAtThisColumn = this.parentYAtColumn.get(slot.x);
+
+        // If other slots at this X have already generated children, stagger horizontally
+        if (parentsAtThisColumn.length > 0) {
+            // Stagger based on how many parents exist at this column
+            const staggerIndex = parentsAtThisColumn.length;
+            nextX += (staggerIndex % 3 - 1) * 40; // Stagger by -40, 0, +40
+        }
+
+        parentsAtThisColumn.push(slot.y);
+
+        // Determine preferred lanes based on parent position
+        const parentLaneIndex = this.findNearestLaneIndex(slot.y);
+        let preferredLanes = [];
+
+        if (numUnlocks === 1) {
+            // Single unlock - prefer same lane or adjacent
+            preferredLanes = [parentLaneIndex, parentLaneIndex - 1, parentLaneIndex + 1];
+        } else if (numUnlocks === 2) {
+            // Two unlocks - prefer lanes above and below parent
+            preferredLanes = [parentLaneIndex - 1, parentLaneIndex + 1, parentLaneIndex - 2, parentLaneIndex + 2];
+        } else {
+            // Three unlocks - spread across lanes
+            preferredLanes = [
+                parentLaneIndex - 1,
+                parentLaneIndex,
+                parentLaneIndex + 1,
+                parentLaneIndex - 2,
+                parentLaneIndex + 2
+            ];
+        }
+
+        // Get available lanes at the target X position
+        const availableLanes = this.getAvailableLanes(nextX);
+
+        // Assign unlocks to lanes
         for (let i = 0; i < numUnlocks; i++) {
             const nextId = this.nextSlotId++;
 
-            // Branch out vertically - spread unlocks around parent's Y position
-            let nextY;
-            if (numUnlocks === 1) {
-                // Single unlock - stay at same level with slight variation
-                nextY = slot.y + (Math.random() - 0.5) * 50;
-            } else if (numUnlocks === 2) {
-                // Two unlocks - split above/below
-                nextY = slot.y + (i === 0 ? -80 : 80);
-            } else {
-                // Three unlocks - above, middle, below
-                nextY = slot.y + (i - 1) * 100;
+            // Find best available lane from preferred list
+            let chosenLane = null;
+            for (const laneIndex of preferredLanes) {
+                if (laneIndex >= 0 && laneIndex < this.slotLanes.length) {
+                    const laneY = this.slotLanes[laneIndex];
+                    if (availableLanes.includes(laneY)) {
+                        chosenLane = laneY;
+                        // Mark as taken for this generation cycle
+                        availableLanes.splice(availableLanes.indexOf(laneY), 1);
+                        break;
+                    }
+                }
             }
 
-            // Clamp Y to reasonable bounds
-            nextY = Math.max(150, Math.min(450, nextY));
+            // If no preferred lane available, use any available lane
+            if (chosenLane === null && availableLanes.length > 0) {
+                chosenLane = availableLanes[0];
+                availableLanes.splice(0, 1);
+            }
 
-            // Check for collisions and adjust position if needed
-            nextY = this.findNonCollidingY(nextX, nextY);
+            // If still no lane (all occupied), use fallback position
+            if (chosenLane === null) {
+                chosenLane = this.slotLanes[Math.floor(this.slotLanes.length / 2)];
+                console.warn(`No available lane at x=${nextX}, using fallback`);
+            }
 
-            // Store unlock data without creating the slot yet
+            // Store unlock data
             slot.unlockData.push({
                 id: nextId,
                 x: nextX,
-                y: nextY
+                y: chosenLane
             });
+
+            // Reserve this lane at this X for future checks
+            if (!this.occupiedLanes.has(nextX)) {
+                this.occupiedLanes.set(nextX, new Set());
+            }
+            this.occupiedLanes.get(nextX).add(chosenLane);
         }
     }
 
-    findNonCollidingY(x, preferredY) {
-        const minDistance = 140; // Minimum distance between slot centers (120px slot + 20px padding)
-        let currentY = preferredY;
-        let attempts = 0;
-        const maxAttempts = 20;
+    findNearestLaneIndex(y) {
+        // Find the index of the lane nearest to the given Y position
+        let nearestIndex = 0;
+        let minDistance = Math.abs(y - this.slotLanes[0]);
 
-        while (attempts < maxAttempts) {
-            // Check if this position collides with any existing slot or pending unlock data
-            let hasCollision = false;
-
-            // Check against existing slots
-            for (const slot of this.slots) {
-                const distance = Math.sqrt(Math.pow(x - slot.x, 2) + Math.pow(currentY - slot.y, 2));
-                if (distance < minDistance) {
-                    hasCollision = true;
-                    break;
-                }
-
-                // Also check against this slot's unlock data (pending slots)
-                if (slot.unlockData) {
-                    for (const unlock of slot.unlockData) {
-                        const unlockDist = Math.sqrt(Math.pow(x - unlock.x, 2) + Math.pow(currentY - unlock.y, 2));
-                        if (unlockDist < minDistance) {
-                            hasCollision = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (hasCollision) break;
+        for (let i = 1; i < this.slotLanes.length; i++) {
+            const distance = Math.abs(y - this.slotLanes[i]);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestIndex = i;
             }
-
-            if (!hasCollision) {
-                return currentY;
-            }
-
-            // Collision detected - try shifting position
-            // Alternate between shifting up and down
-            const shiftAmount = 50;
-            if (attempts % 2 === 0) {
-                currentY = preferredY + (Math.floor(attempts / 2) + 1) * shiftAmount;
-            } else {
-                currentY = preferredY - (Math.floor(attempts / 2) + 1) * shiftAmount;
-            }
-
-            // Clamp to bounds
-            currentY = Math.max(150, Math.min(450, currentY));
-
-            attempts++;
         }
 
-        // If we couldn't find a non-colliding position after max attempts, return the preferred position
-        // (This should rarely happen with good spacing parameters)
-        return preferredY;
+        return nearestIndex;
+    }
+
+    getAvailableLanes(x) {
+        // Get list of lanes not occupied at this X position
+        const occupied = this.occupiedLanes.get(x) || new Set();
+        return this.slotLanes.filter(lane => !occupied.has(lane));
     }
 
     handleSlotClick(slotId) {
