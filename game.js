@@ -86,13 +86,14 @@ class Deck {
  * Encounter class representing a single encounter
  */
 class Encounter {
-    constructor(id, type) {
+    constructor(id, type, slotId = null) {
         this.id = id;
         this.type = type;
         this.hand = [];
         this.playedCards = [];
         this.completed = false;
         this.failed = false;
+        this.slotId = slotId; // Which map slot this encounter is in
     }
 
     addCardToHand(card) {

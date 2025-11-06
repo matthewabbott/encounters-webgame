@@ -467,6 +467,15 @@ header h1 {
     transition: border-color 0.3s;
 }
 
+/* Encounters positioned on map */
+.encounter-on-map {
+    position: absolute;
+    width: 350px;
+    transform: translate(-50%, -50%);
+    pointer-events: all;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
 .encounter:hover {
     border-color: var(--primary-color);
 }

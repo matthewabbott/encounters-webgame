@@ -61,23 +61,38 @@ class UI {
     initializeMapSlots() {
         // Create a simple grid of slots for testing
         // Later this will be procedurally generated
-        const slots = [
-            { x: 200, y: 200, status: 'unlocked' },  // Starting slot
-            { x: 400, y: 200, status: 'locked' },
-            { x: 600, y: 200, status: 'locked' },
-            { x: 400, y: 400, status: 'locked' },
-            { x: 600, y: 400, status: 'locked' },
-            { x: 800, y: 300, status: 'locked' }
+        this.slots = [
+            { id: 0, x: 200, y: 200, status: 'unlocked', encounterId: null },  // Starting slot
+            { id: 1, x: 400, y: 200, status: 'unlocked', encounterId: null },
+            { id: 2, x: 600, y: 200, status: 'locked', encounterId: null },
+            { id: 3, x: 400, y: 400, status: 'locked', encounterId: null },
+            { id: 4, x: 600, y: 400, status: 'locked', encounterId: null },
+            { id: 5, x: 800, y: 300, status: 'locked', encounterId: null }
         ];
 
-        slots.forEach((slot, index) => {
+        this.slots.forEach((slot) => {
             const slotEl = document.createElement('div');
             slotEl.className = `map-slot ${slot.status}`;
             slotEl.style.left = `${slot.x}px`;
             slotEl.style.top = `${slot.y}px`;
-            slotEl.setAttribute('data-slot-id', index);
+            slotEl.setAttribute('data-slot-id', slot.id);
             this.mapSlots.appendChild(slotEl);
         });
+    }
+
+    getAvailableSlot() {
+        // Find first unlocked slot without an encounter
+        return this.slots.find(slot => slot.status === 'unlocked' && slot.encounterId === null);
+    }
+
+    assignEncounterToSlot(encounter) {
+        const slot = this.getAvailableSlot();
+        if (slot) {
+            slot.encounterId = encounter.id;
+            encounter.slotId = slot.id;
+            return slot;
+        }
+        return null;
     }
 
     attachEventListeners() {
@@ -173,10 +188,28 @@ class UI {
         let encounterEl = document.querySelector(`[data-encounter-id="${encounter.id}"]`);
 
         if (!encounterEl) {
+            // Assign encounter to slot if not already assigned
+            if (encounter.slotId === null) {
+                const slot = this.assignEncounterToSlot(encounter);
+                if (!slot) {
+                    console.error('No available slot for encounter!');
+                    return;
+                }
+            }
+
             // Create new encounter element
             encounterEl = this.encounterTemplate.content.cloneNode(true).querySelector('.encounter');
             encounterEl.setAttribute('data-encounter-id', encounter.id);
             encounterEl.classList.add(`difficulty-${encounter.type.difficulty}`);
+            encounterEl.classList.add('encounter-on-map');
+
+            // Position at slot coordinates
+            const slot = this.slots.find(s => s.id === encounter.slotId);
+            if (slot) {
+                encounterEl.style.left = `${slot.x}px`;
+                encounterEl.style.top = `${slot.y}px`;
+            }
+
             this.encountersContainer.appendChild(encounterEl);
 
             // Attach encounter-specific event listeners
