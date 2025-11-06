@@ -66,32 +66,82 @@ class UI {
     }
 
     initializeMapSlots() {
-        // Create a simple grid of slots with unlock progression
-        // Each slot has: id, position, status, encounterId, unlocks (array of slot IDs to unlock)
-        this.slots = [
-            { id: 0, x: 200, y: 200, status: 'unlocked', encounterId: null, unlocks: [1] },  // Starting slot unlocks slot 1
-            { id: 1, x: 400, y: 200, status: 'locked', encounterId: null, unlocks: [2, 3] },  // Slot 1 unlocks 2 and 3
-            { id: 2, x: 600, y: 200, status: 'locked', encounterId: null, unlocks: [4] },
-            { id: 3, x: 400, y: 400, status: 'locked', encounterId: null, unlocks: [4] },
-            { id: 4, x: 600, y: 400, status: 'locked', encounterId: null, unlocks: [5] },
-            { id: 5, x: 800, y: 300, status: 'locked', encounterId: null, unlocks: [] }  // Final slot
-        ];
+        // Procedural slot generation - start with first slot and generate more as needed
+        this.slots = [];
+        this.nextSlotId = 0;
+        this.slotSpacing = 250; // Horizontal spacing between slot columns
+        this.slotYPositions = [200, 300, 400]; // Possible Y positions for variety
 
-        this.slots.forEach((slot) => {
-            const slotEl = document.createElement('div');
-            slotEl.className = `map-slot ${slot.status}`;
-            slotEl.style.left = `${slot.x}px`;
-            slotEl.style.top = `${slot.y}px`;
-            slotEl.setAttribute('data-slot-id', slot.id);
+        // Create the starting slot
+        this.createSlot(0, 200, 250, 'unlocked');
+    }
 
-            // Add click handler for unlocked empty slots
-            slotEl.addEventListener('click', (e) => {
-                e.stopPropagation(); // Don't trigger map pan
-                this.handleSlotClick(slot.id);
-            });
+    createSlot(id, x, y, status = 'locked') {
+        // Check if slot already exists
+        if (this.slots.find(s => s.id === id)) {
+            return this.slots.find(s => s.id === id);
+        }
 
-            this.mapSlots.appendChild(slotEl);
+        const slot = {
+            id: id,
+            x: x,
+            y: y,
+            status: status,
+            encounterId: null,
+            unlocks: [] // Will be populated when we generate next slots
+        };
+
+        this.slots.push(slot);
+
+        // Create DOM element
+        const slotEl = document.createElement('div');
+        slotEl.className = `map-slot ${slot.status}`;
+        slotEl.style.left = `${slot.x}px`;
+        slotEl.style.top = `${slot.y}px`;
+        slotEl.setAttribute('data-slot-id', slot.id);
+
+        slotEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.handleSlotClick(slot.id);
         });
+
+        this.mapSlots.appendChild(slotEl);
+
+        // Generate potential unlock slots for this slot (procedurally)
+        this.generateUnlocksForSlot(slot);
+
+        // Update next slot ID
+        if (id >= this.nextSlotId) {
+            this.nextSlotId = id + 1;
+        }
+
+        return slot;
+    }
+
+    generateUnlocksForSlot(slot) {
+        // Each slot unlocks 1-2 new slots to the right
+        const numUnlocks = Math.random() < 0.5 ? 1 : 2; // 50% chance of 1 or 2 unlocks
+        const nextX = slot.x + this.slotSpacing;
+
+        for (let i = 0; i < numUnlocks; i++) {
+            const nextId = this.nextSlotId++;
+
+            // Choose Y position - either same level or different level
+            let nextY;
+            if (numUnlocks === 1) {
+                // Single unlock - keep same Y or vary slightly
+                nextY = slot.y;
+            } else {
+                // Multiple unlocks - spread them out
+                nextY = this.slotYPositions[i % this.slotYPositions.length];
+            }
+
+            // Create the new slot (locked by default)
+            this.createSlot(nextId, nextX, nextY, 'locked');
+
+            // Add to unlocks array
+            slot.unlocks.push(nextId);
+        }
     }
 
     handleSlotClick(slotId) {
@@ -376,11 +426,14 @@ class UI {
         }
 
         // Update encounter state classes
-        encounterEl.classList.remove('completed', 'failed', 'locked');
+        encounterEl.classList.remove('completed', 'failed', 'locked', 'rewards-available');
         const statusEl = encounterEl.querySelector('.encounter-status');
 
         if (encounter.completed) {
             encounterEl.classList.add('completed');
+            if (!encounter.rewardsCollected) {
+                encounterEl.classList.add('rewards-available');
+            }
             statusEl.textContent = '✓ COMPLETE';
             statusEl.className = 'encounter-status status-complete';
         } else if (encounter.failed) {
@@ -390,6 +443,20 @@ class UI {
         } else {
             statusEl.textContent = '';
             statusEl.className = 'encounter-status';
+        }
+
+        // Update minimized state
+        if (encounter.minimized) {
+            encounterEl.classList.add('minimized');
+        } else {
+            encounterEl.classList.remove('minimized');
+        }
+
+        // Update minimize button text
+        const minimizeBtn = encounterEl.querySelector('.minimize-btn');
+        if (minimizeBtn) {
+            minimizeBtn.textContent = encounter.minimized ? '+' : '−';
+            minimizeBtn.title = encounter.minimized ? 'Expand' : 'Minimize';
         }
 
         // Update header
@@ -421,7 +488,13 @@ class UI {
 
         if (encounter.completed) {
             completeBtn.style.display = 'inline-block';
-            completeBtn.textContent = 'Collect Rewards';
+            if (encounter.rewardsCollected) {
+                completeBtn.textContent = 'Rewards Collected';
+                completeBtn.disabled = true;
+            } else {
+                completeBtn.textContent = 'Collect Rewards';
+                completeBtn.disabled = false;
+            }
             drawBtn.disabled = true;
             abandonBtn.style.display = 'none';
         } else if (encounter.failed) {
@@ -500,6 +573,12 @@ class UI {
     }
 
     attachEncounterListeners(encounterEl, encounterId) {
+        // Minimize button
+        encounterEl.querySelector('.minimize-btn').addEventListener('click', (e) => {
+            e.stopPropagation(); // Don't trigger z-index reordering
+            this.game.toggleEncounterMinimize(encounterId);
+        });
+
         // Draw card button
         encounterEl.querySelector('.draw-btn').addEventListener('click', () => {
             this.game.drawCardForEncounter(encounterId);
@@ -739,10 +818,15 @@ class UI {
     reset() {
         this.encountersContainer.innerHTML = '';
 
-        // Free all slots
-        this.slots.forEach(slot => {
-            slot.encounterId = null;
-        });
+        // Clear all slots and their DOM elements
+        this.mapSlots.innerHTML = '';
+        this.slots = [];
+
+        // Reinitialize slots from scratch
+        this.initializeMapSlots();
+
+        // Reset tutorial flag
+        this.mapState.tutorialShown = false;
 
         this.updateGameStats();
     }

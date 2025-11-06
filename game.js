@@ -93,6 +93,8 @@ class Encounter {
         this.playedCards = [];
         this.completed = false;
         this.failed = false;
+        this.rewardsCollected = false;
+        this.minimized = false;
         this.slotId = slotId; // Which map slot this encounter is in
     }
 
@@ -470,7 +472,7 @@ class Game {
 
     completeEncounter(encounterId) {
         const encounter = this.encounters.get(encounterId);
-        if (!encounter || !encounter.completed) {
+        if (!encounter || !encounter.completed || encounter.rewardsCollected) {
             return false;
         }
 
@@ -502,6 +504,10 @@ class Game {
     finalizeEncounterCompletion(encounterId, selectedRewardCards) {
         const encounter = this.encounters.get(encounterId);
         if (!encounter) return;
+
+        // Mark rewards as collected and auto-minimize
+        encounter.rewardsCollected = true;
+        encounter.minimized = true;
 
         // Check if this was a boss encounter
         const wasBoss = encounter.type.difficulty === Difficulty.BOSS;
@@ -598,6 +604,14 @@ class Game {
         return true;
     }
 
+    toggleEncounterMinimize(encounterId) {
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter) return;
+
+        encounter.minimized = !encounter.minimized;
+        this.ui.updateEncounter(encounter);
+    }
+
     resetGame() {
         this.ui.showConfirmation(
             'Reset Game?',
@@ -613,6 +627,9 @@ class Game {
                     this.encountersCleared = 0;
                     this.bossDefeated = false;
                     this.bossDeclineCount = 0;
+
+                    // Reset encounter deck and hand
+                    this.initializeEncounterDeck();
 
                     // Regenerate next encounter options
                     this.generateNextEncounterOptions();
