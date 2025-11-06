@@ -29,6 +29,10 @@ class UI {
         this.mapCanvas = document.getElementById('map-canvas');
         this.mapSlots = document.getElementById('map-slots');
 
+        // Encounter hand elements
+        this.encounterHandEl = document.getElementById('encounter-hand');
+        this.encounterDeckCountEl = document.getElementById('encounter-deck-count');
+
         // Map state
         this.mapState = {
             panX: 100,
@@ -39,7 +43,8 @@ class UI {
             dragStartY: 0,
             panStartX: 0,
             panStartY: 0,
-            nextZIndex: 100 // For managing encounter stacking order
+            nextZIndex: 100, // For managing encounter stacking order
+            selectedSlotId: null // For encounter placement
         };
 
         // Apply initial transform
@@ -77,8 +82,36 @@ class UI {
             slotEl.style.left = `${slot.x}px`;
             slotEl.style.top = `${slot.y}px`;
             slotEl.setAttribute('data-slot-id', slot.id);
+
+            // Add click handler for unlocked empty slots
+            slotEl.addEventListener('click', (e) => {
+                e.stopPropagation(); // Don't trigger map pan
+                this.handleSlotClick(slot.id);
+            });
+
             this.mapSlots.appendChild(slotEl);
         });
+    }
+
+    handleSlotClick(slotId) {
+        const slot = this.slots.find(s => s.id === slotId);
+        if (!slot) return;
+
+        // Only allow clicking unlocked empty slots
+        if (slot.status !== 'unlocked' || slot.encounterId !== null) {
+            return;
+        }
+
+        // If a card is selected from hand, play it
+        if (this.mapState.selectedHandIndex !== null) {
+            const result = this.game.playEncounterFromHand(this.mapState.selectedHandIndex, slotId);
+            if (result) {
+                this.clearSlotSelection();
+            }
+        } else {
+            // No card selected - prompt to select from hand
+            this.game.ui.showNotification('Select an Encounter', 'Click a card from your hand at the bottom of the screen to place it here.', '💡');
+        }
     }
 
     getAvailableSlot() {
@@ -160,6 +193,91 @@ class UI {
             this.emptyState.style.display = 'none';
             this.encountersContainer.style.display = 'grid';
         }
+    }
+
+    updateEncounterHand() {
+        // Clear current hand display
+        this.encounterHandEl.innerHTML = '';
+
+        // Update deck count
+        this.encounterDeckCountEl.textContent = this.game.encounterDeck.length;
+
+        // Render each card in hand
+        this.game.encounterHand.forEach((encounterType, index) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = `encounter-card difficulty-${encounterType.difficulty}`;
+            cardEl.setAttribute('data-hand-index', index);
+
+            const categoryData = CategoryInfo[encounterType.category];
+            const categoryIcon = categoryData ? categoryData.icon : '?';
+
+            cardEl.innerHTML = `
+                <div class="encounter-card-header">
+                    <div class="encounter-card-category" style="color: ${this.getCategoryColor(encounterType.category)}">${categoryIcon}</div>
+                    <div class="encounter-card-difficulty">${encounterType.difficulty}</div>
+                </div>
+                <div class="encounter-card-name">${encounterType.name}</div>
+                <div class="encounter-card-description">${encounterType.description}</div>
+            `;
+
+            // Add click handler
+            cardEl.addEventListener('click', () => {
+                this.handleEncounterCardClick(index);
+            });
+
+            this.encounterHandEl.appendChild(cardEl);
+        });
+    }
+
+    getCategoryColor(category) {
+        const colors = {
+            'sum': '#f39c12',
+            'sequence': '#3498db',
+            'collection': '#9b59b6',
+            'duel': '#e74c3c',
+            'multi-stage': '#1abc9c',
+            'simple': '#95a5a6',
+            'hybrid': '#e67e22'
+        };
+        return colors[category] || '#fff';
+    }
+
+    handleEncounterCardClick(handIndex) {
+        // If a slot is selected, play the encounter there
+        if (this.mapState.selectedSlotId !== null) {
+            const result = this.game.playEncounterFromHand(handIndex, this.mapState.selectedSlotId);
+            if (result) {
+                // Clear selection
+                this.clearSlotSelection();
+            }
+        } else {
+            // No slot selected - prompt user to select a slot
+            this.game.ui.showNotification('Select a Slot', 'Click an unlocked slot on the map to place this encounter.', '💡');
+
+            // Highlight the selected card
+            const cards = this.encounterHandEl.querySelectorAll('.encounter-card');
+            cards.forEach((card, i) => {
+                if (i === handIndex) {
+                    card.classList.add('selected-for-slot');
+                } else {
+                    card.classList.remove('selected-for-slot');
+                }
+            });
+
+            // Store which card was selected (for future: could show this in UI)
+            this.mapState.selectedHandIndex = handIndex;
+        }
+    }
+
+    clearSlotSelection() {
+        this.mapState.selectedSlotId = null;
+        this.mapState.selectedHandIndex = null;
+
+        // Remove selection highlighting from cards
+        const cards = this.encounterHandEl.querySelectorAll('.encounter-card');
+        cards.forEach(card => card.classList.remove('selected-for-slot'));
+
+        // Remove selection highlighting from slots (add this later)
     }
 
     updateUpcomingEncounters() {
