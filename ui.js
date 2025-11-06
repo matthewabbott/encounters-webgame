@@ -70,10 +70,16 @@ class UI {
         // Procedural slot generation - start with first slot and generate more as needed
         this.slots = [];
         this.nextSlotId = 0;
-        this.slotSpacing = 250; // Base horizontal spacing between slot columns
+        this.slotSpacing = 280; // Base horizontal spacing between slot columns
 
-        // Define fixed Y "lanes" for slots to snap to
-        this.slotLanes = [175, 250, 325, 400, 475];
+        // Spatial grid system for collision detection
+        this.slotSize = 120; // Slot visual size
+        this.slotPadding = 40; // Minimum padding between slots
+        this.gridCellSize = 60; // Grid cell size (half of slot size)
+        this.spatialGrid = new Map(); // Maps "x,y" grid cell to slot ID
+
+        // Define fixed Y "lanes" for slots to snap to - increased spacing
+        this.slotLanes = [200, 350, 500]; // 150px spacing (accommodates 120px slot + 30px padding)
 
         // Track which lanes are occupied at each X column
         // Format: { x: Set(lanes) }
@@ -84,10 +90,74 @@ class UI {
         this.parentYAtColumn = new Map();
 
         // Create the starting slot at middle lane
-        this.createSlot(0, 200, 325, 'unlocked');
+        this.createSlot(0, 200, 350, 'unlocked');
 
         // Draw initial connections
         this.drawAllConnections();
+    }
+
+    // Convert world coordinates to grid coordinates
+    worldToGrid(x, y) {
+        return {
+            gridX: Math.floor(x / this.gridCellSize),
+            gridY: Math.floor(y / this.gridCellSize)
+        };
+    }
+
+    // Check if a slot can be placed at the given position
+    canPlaceSlot(x, y, excludeSlotId = null) {
+        // Calculate how many grid cells the slot occupies
+        const cellsWide = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+        const cellsHigh = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+
+        const centerGrid = this.worldToGrid(x, y);
+        const halfCells = Math.floor(cellsWide / 2);
+
+        // Check all cells that would be occupied
+        for (let gx = centerGrid.gridX - halfCells; gx <= centerGrid.gridX + halfCells; gx++) {
+            for (let gy = centerGrid.gridY - halfCells; gy <= centerGrid.gridY + halfCells; gy++) {
+                const key = `${gx},${gy}`;
+                const occupyingSlotId = this.spatialGrid.get(key);
+
+                if (occupyingSlotId !== undefined && occupyingSlotId !== excludeSlotId) {
+                    return false; // Cell is occupied by another slot
+                }
+            }
+        }
+
+        return true; // All cells are free
+    }
+
+    // Mark grid cells as occupied by a slot
+    occupyGridCells(x, y, slotId) {
+        const cellsWide = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+        const cellsHigh = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+
+        const centerGrid = this.worldToGrid(x, y);
+        const halfCells = Math.floor(cellsWide / 2);
+
+        for (let gx = centerGrid.gridX - halfCells; gx <= centerGrid.gridX + halfCells; gx++) {
+            for (let gy = centerGrid.gridY - halfCells; gy <= centerGrid.gridY + halfCells; gy++) {
+                const key = `${gx},${gy}`;
+                this.spatialGrid.set(key, slotId);
+            }
+        }
+    }
+
+    // Free grid cells occupied by a slot
+    freeGridCells(x, y) {
+        const cellsWide = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+        const cellsHigh = Math.ceil((this.slotSize + this.slotPadding * 2) / this.gridCellSize);
+
+        const centerGrid = this.worldToGrid(x, y);
+        const halfCells = Math.floor(cellsWide / 2);
+
+        for (let gx = centerGrid.gridX - halfCells; gx <= centerGrid.gridX + halfCells; gx++) {
+            for (let gy = centerGrid.gridY - halfCells; gy <= centerGrid.gridY + halfCells; gy++) {
+                const key = `${gx},${gy}`;
+                this.spatialGrid.delete(key);
+            }
+        }
     }
 
     createSlot(id, x, y, status = 'locked') {
@@ -112,6 +182,9 @@ class UI {
             this.occupiedLanes.set(x, new Set());
         }
         this.occupiedLanes.get(x).add(y);
+
+        // Mark spatial grid cells as occupied
+        this.occupyGridCells(x, y, id);
 
         // Create DOM element
         const slotEl = document.createElement('div');
@@ -214,18 +287,25 @@ class UI {
                 console.warn(`No available lane at x=${nextX}, using fallback`);
             }
 
-            // Store unlock data
-            slot.unlockData.push({
-                id: nextId,
-                x: nextX,
-                y: chosenLane
-            });
+            // Validate position using spatial grid
+            if (this.canPlaceSlot(nextX, chosenLane)) {
+                // Store unlock data
+                slot.unlockData.push({
+                    id: nextId,
+                    x: nextX,
+                    y: chosenLane
+                });
 
-            // Reserve this lane at this X for future checks
-            if (!this.occupiedLanes.has(nextX)) {
-                this.occupiedLanes.set(nextX, new Set());
+                // Reserve this lane at this X for future checks
+                if (!this.occupiedLanes.has(nextX)) {
+                    this.occupiedLanes.set(nextX, new Set());
+                }
+                this.occupiedLanes.get(nextX).add(chosenLane);
+            } else {
+                console.warn(`Cannot place slot at (${nextX}, ${chosenLane}) - spatial grid conflict`);
+                // Don't add this unlock if it would overlap
+                this.nextSlotId--; // Return the ID since we didn't use it
             }
-            this.occupiedLanes.get(nextX).add(chosenLane);
         }
     }
 
