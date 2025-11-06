@@ -39,8 +39,8 @@
 
                 <div class="controls-section">
                     <h2>Actions</h2>
-                    <button id="new-encounter-btn" class="btn btn-primary">
-                        Start New Encounter
+                    <button id="new-encounter-btn" class="btn btn-primary" style="display: none;">
+                        Start New Encounter (OLD)
                     </button>
                     <button id="reset-game-btn" class="btn btn-secondary">
                         Reset Game
@@ -53,8 +53,8 @@
                         <div class="countdown-label">Encounters until boss:</div>
                         <div class="countdown-value">6</div>
                     </div>
-                    <div id="upcoming-encounters" class="upcoming-encounters">
-                        <!-- Upcoming encounter preview will be added here -->
+                    <div id="upcoming-encounters" class="upcoming-encounters" style="display: none;">
+                        <!-- DEPRECATED: Upcoming encounter preview - replaced by encounter hand -->
                     </div>
                 </div>
 
@@ -80,7 +80,7 @@
                 </div>
 
                 <div id="empty-state" class="empty-state">
-                    <p>No active encounters. Click "Start New Encounter" to begin!</p>
+                    <p>No active encounters. Select a card from your hand and click a slot to begin!</p>
                 </div>
 
                 <div class="map-controls">

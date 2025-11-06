@@ -154,6 +154,9 @@ class Game {
         this.generateNextEncounterOptions();
 
         this.ui = new UI(this);
+
+        // Update encounter hand UI after UI is created
+        this.ui.updateEncounterHand();
     }
 
     initializeEncounterDeck() {

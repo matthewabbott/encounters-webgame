@@ -6,9 +6,45 @@ You're a netrunner infiltrating a corporate blacksite. Each "encounter" is a pie
 
 ---
 
+## CURRENT IMPLEMENTATION STATUS
+
+### Completed
+- ✅ Circuit board map with pan/zoom
+- ✅ Slot visualization (unlocked/locked)
+- ✅ Encounter deck system (shuffled deck of encounters)
+- ✅ Encounter hand (3 cards displayed at bottom)
+- ✅ Click card → click slot → place encounter
+- ✅ Encounter categories with visual badges
+
+### In Progress / Near Future
+
+**"The Outside Hand" - Unified Bottom UI (HIGH PRIORITY)**
+
+The bottom panel should be "the outside hand" - everything the player holds that isn't on the map.
+
+**Minimizable Design**:
+- Default: Receded toward bottom, showing only top corners of items
+- Each item shows its icon/symbol in the corner
+- **Hover**: Slightly expands to show more info
+- **Click**: Fully expands to show all details
+- Saves screen space while keeping items accessible
+
+**Contents**:
+- **Encounter cards** (current implementation)
+- **Consumables** (future: one-time use items)
+- **Literal playing cards** (future: rare drops that can be played into any encounter)
+- Other meta-items
+
+**Implementation**:
+- Single visual container
+- Multiple data structures under the hood (encounterHand, consumables[], etc.)
+- Consistent visual language across all item types
+
+---
+
 ## NEXT EVOLUTION: Circuit Board Map + Encounter Deck System
 
-**Status**: Design phase - NOT YET IMPLEMENTED
+**Status**: Partially implemented (map + deck done, slot progression pending)
 
 This represents the next major evolution of the game, transforming it from a simple slot-based system into a spatial strategy game with encounter hand management.
 
