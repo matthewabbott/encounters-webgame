@@ -78,8 +78,10 @@ class UI {
         this.gridCellSize = 60; // Grid cell size (half of slot size)
         this.spatialGrid = new Map(); // Maps "x,y" grid cell to slot ID
 
-        // Define fixed Y "lanes" for slots to snap to - increased spacing
-        this.slotLanes = [200, 350, 500]; // 150px spacing (accommodates 120px slot + 30px padding)
+        // Define fixed Y "lanes" for slots to snap to
+        // Each slot needs 120px + 40px*2 padding = 200px vertical space
+        // So lanes must be spaced at least 200px apart (using 220px for safety)
+        this.slotLanes = [250, 470, 690]; // 220px spacing between lanes (supports 3 branches)
 
         // Track which lanes are occupied at each X column
         // Format: { x: Set(lanes) }
@@ -89,8 +91,8 @@ class UI {
         // Format: { x: [parentY1, parentY2, ...] }
         this.parentYAtColumn = new Map();
 
-        // Create the starting slot at middle lane
-        this.createSlot(0, 200, 350, 'unlocked');
+        // Create the starting slot at top lane
+        this.createSlot(0, 200, 250, 'unlocked');
 
         // Draw initial connections
         this.drawAllConnections();
