@@ -416,8 +416,9 @@ class Game {
         }
 
         // Remove encounter
+        const slotId = encounter.slotId;
         this.encounters.delete(encounterId);
-        this.ui.removeEncounter(encounterId);
+        this.ui.removeEncounter(encounterId, slotId);
         this.ui.updateGameStats();
     }
 
@@ -437,8 +438,9 @@ class Game {
                     this.deck.returnCards(cards);
 
                     // Remove encounter
+                    const slotId = encounter.slotId;
                     this.encounters.delete(encounterId);
-                    this.ui.removeEncounter(encounterId);
+                    this.ui.removeEncounter(encounterId, slotId);
                     this.ui.updateGameStats();
                 }
             }

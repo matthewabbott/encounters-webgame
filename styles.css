@@ -470,10 +470,15 @@ header h1 {
 /* Encounters positioned on map */
 .encounter-on-map {
     position: absolute;
-    width: 350px;
+    width: 300px;
     transform: translate(-50%, -50%);
     pointer-events: all;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    cursor: move;
+}
+
+.encounter-on-map:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.7);
 }
 
 .encounter:hover {

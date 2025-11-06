@@ -38,7 +38,8 @@ class UI {
             dragStartX: 0,
             dragStartY: 0,
             panStartX: 0,
-            panStartY: 0
+            panStartY: 0,
+            nextZIndex: 100 // For managing encounter stacking order
         };
 
         // Apply initial transform
@@ -210,6 +211,18 @@ class UI {
                 encounterEl.style.top = `${slot.y}px`;
             }
 
+            // Set initial z-index
+            encounterEl.style.zIndex = this.mapState.nextZIndex++;
+
+            // Add click handler to bring to front
+            encounterEl.addEventListener('mousedown', (e) => {
+                // Don't trigger if clicking a button or card
+                if (e.target.closest('button') || e.target.closest('.card')) {
+                    return;
+                }
+                encounterEl.style.zIndex = this.mapState.nextZIndex++;
+            });
+
             this.encountersContainer.appendChild(encounterEl);
 
             // Attach encounter-specific event listeners
@@ -357,11 +370,20 @@ class UI {
         });
     }
 
-    removeEncounter(encounterId) {
+    removeEncounter(encounterId, slotId = null) {
         const encounterEl = document.querySelector(`[data-encounter-id="${encounterId}"]`);
         if (encounterEl) {
             encounterEl.remove();
         }
+
+        // Free the slot
+        if (slotId !== null) {
+            const slot = this.slots.find(s => s.id === slotId);
+            if (slot) {
+                slot.encounterId = null;
+            }
+        }
+
         this.updateGameStats();
     }
 
@@ -570,6 +592,12 @@ class UI {
 
     reset() {
         this.encountersContainer.innerHTML = '';
+
+        // Free all slots
+        this.slots.forEach(slot => {
+            slot.encounterId = null;
+        });
+
         this.updateGameStats();
     }
 }
