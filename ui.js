@@ -70,10 +70,10 @@ class UI {
         this.slots = [];
         this.nextSlotId = 0;
         this.slotSpacing = 250; // Horizontal spacing between slot columns
-        this.slotYPositions = [200, 300, 400]; // Possible Y positions for variety
+        this.slotYVariation = 100; // How much Y can vary
 
         // Create the starting slot
-        this.createSlot(0, 200, 250, 'unlocked');
+        this.createSlot(0, 200, 300, 'unlocked');
     }
 
     createSlot(id, x, y, status = 'locked') {
@@ -88,7 +88,7 @@ class UI {
             y: y,
             status: status,
             encounterId: null,
-            unlocks: [] // Will be populated when we generate next slots
+            unlockData: [] // Store unlock info: [{id, x, y}, ...]
         };
 
         this.slots.push(slot);
@@ -107,8 +107,8 @@ class UI {
 
         this.mapSlots.appendChild(slotEl);
 
-        // Generate potential unlock slots for this slot (procedurally)
-        this.generateUnlocksForSlot(slot);
+        // Generate unlock data for this slot (but don't create slots yet)
+        this.generateUnlockDataForSlot(slot);
 
         // Update next slot ID
         if (id >= this.nextSlotId) {
@@ -118,29 +118,36 @@ class UI {
         return slot;
     }
 
-    generateUnlocksForSlot(slot) {
-        // Each slot unlocks 1-2 new slots to the right
-        const numUnlocks = Math.random() < 0.5 ? 1 : 2; // 50% chance of 1 or 2 unlocks
+    generateUnlockDataForSlot(slot) {
+        // Each slot defines 1-3 new slots that will unlock
+        const numUnlocks = Math.floor(Math.random() * 3) + 1; // 1-3 unlocks
         const nextX = slot.x + this.slotSpacing;
 
         for (let i = 0; i < numUnlocks; i++) {
             const nextId = this.nextSlotId++;
 
-            // Choose Y position - either same level or different level
+            // Branch out vertically - spread unlocks around parent's Y position
             let nextY;
             if (numUnlocks === 1) {
-                // Single unlock - keep same Y or vary slightly
-                nextY = slot.y;
+                // Single unlock - stay at same level with slight variation
+                nextY = slot.y + (Math.random() - 0.5) * 50;
+            } else if (numUnlocks === 2) {
+                // Two unlocks - split above/below
+                nextY = slot.y + (i === 0 ? -80 : 80);
             } else {
-                // Multiple unlocks - spread them out
-                nextY = this.slotYPositions[i % this.slotYPositions.length];
+                // Three unlocks - above, middle, below
+                nextY = slot.y + (i - 1) * 100;
             }
 
-            // Create the new slot (locked by default)
-            this.createSlot(nextId, nextX, nextY, 'locked');
+            // Clamp Y to reasonable bounds
+            nextY = Math.max(150, Math.min(450, nextY));
 
-            // Add to unlocks array
-            slot.unlocks.push(nextId);
+            // Store unlock data without creating the slot yet
+            slot.unlockData.push({
+                id: nextId,
+                x: nextX,
+                y: nextY
+            });
         }
     }
 
@@ -186,16 +193,20 @@ class UI {
     unlockSlotsFromSlot(slotId) {
         // Find the slot that was completed
         const completedSlot = this.slots.find(s => s.id === slotId);
-        if (!completedSlot || !completedSlot.unlocks) return;
+        if (!completedSlot || !completedSlot.unlockData) return;
 
-        // Unlock all slots in the unlocks array
-        completedSlot.unlocks.forEach(unlockId => {
-            const slotToUnlock = this.slots.find(s => s.id === unlockId);
-            if (slotToUnlock && slotToUnlock.status === 'locked') {
-                slotToUnlock.status = 'unlocked';
+        // Create and unlock new slots based on unlock data
+        completedSlot.unlockData.forEach(unlockInfo => {
+            // Check if slot already exists
+            let slot = this.slots.find(s => s.id === unlockInfo.id);
 
-                // Update the DOM element
-                const slotEl = document.querySelector(`[data-slot-id="${unlockId}"]`);
+            if (!slot) {
+                // Create new slot with unlocked status
+                slot = this.createSlot(unlockInfo.id, unlockInfo.x, unlockInfo.y, 'unlocked');
+            } else if (slot.status === 'locked') {
+                // Unlock existing slot
+                slot.status = 'unlocked';
+                const slotEl = document.querySelector(`[data-slot-id="${unlockInfo.id}"]`);
                 if (slotEl) {
                     slotEl.classList.remove('locked');
                     slotEl.classList.add('unlocked');

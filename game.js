@@ -536,6 +536,9 @@ class Game {
             }, 500);
         }
 
+        // Update encounter UI to show minimized state
+        this.ui.renderEncounter(encounter);
+
         // Unlock new slots based on this slot's completion
         if (encounter.slotId !== null) {
             this.ui.unlockSlotsFromSlot(encounter.slotId);
@@ -609,7 +612,7 @@ class Game {
         if (!encounter) return;
 
         encounter.minimized = !encounter.minimized;
-        this.ui.updateEncounter(encounter);
+        this.ui.renderEncounter(encounter);
     }
 
     resetGame() {

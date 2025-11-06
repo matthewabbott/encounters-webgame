@@ -613,6 +613,25 @@ header h1 {
     gap: 4px;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.minimize-btn {
+    padding: 2px 6px;
+    font-size: 1rem;
+    line-height: 1;
+    min-width: auto;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.minimize-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .title-row {
     display: flex;
     align-items: center;
