@@ -328,6 +328,118 @@ header h1 {
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     overflow-y: auto;
+    position: relative;
+}
+
+/* Map viewport and canvas */
+.map-viewport {
+    width: 100%;
+    height: calc(100vh - 300px);
+    min-height: 500px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #0a0e1a 0%, #151b2e 100%);
+    border-radius: 8px;
+    position: relative;
+    cursor: grab;
+    /* Circuit board grid pattern */
+    background-image:
+        linear-gradient(rgba(100, 255, 218, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 255, 218, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.map-viewport:active {
+    cursor: grabbing;
+}
+
+.map-canvas {
+    position: absolute;
+    width: 2000px;
+    height: 2000px;
+    transform-origin: 0 0;
+    transition: transform 0.05s ease-out;
+}
+
+.map-slots {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.encounters-on-map {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.map-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.map-hint {
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--text-light);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    backdrop-filter: blur(4px);
+}
+
+/* Map slots */
+.map-slot {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border: 2px solid rgba(100, 255, 218, 0.3);
+    border-radius: 8px;
+    background: rgba(100, 255, 218, 0.05);
+    transform: translate(-50%, -50%);
+    pointer-events: all;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.map-slot::before {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(100, 255, 218, 0.5);
+}
+
+.map-slot.unlocked {
+    border-color: rgba(100, 255, 218, 0.6);
+    background: rgba(100, 255, 218, 0.1);
+    box-shadow: 0 0 20px rgba(100, 255, 218, 0.2);
+}
+
+.map-slot.unlocked::before {
+    background: rgba(100, 255, 218, 1);
+    box-shadow: 0 0 10px rgba(100, 255, 218, 0.8);
+}
+
+.map-slot.locked {
+    border-color: rgba(100, 100, 100, 0.3);
+    background: rgba(50, 50, 50, 0.1);
+}
+
+.map-slot.locked::before {
+    background: rgba(100, 100, 100, 0.5);
+}
+
+.map-slot.unlocked:hover {
+    border-color: rgba(100, 255, 218, 1);
+    background: rgba(100, 255, 218, 0.15);
+    transform: translate(-50%, -50%) scale(1.05);
 }
 
 .encounters-grid {

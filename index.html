@@ -66,14 +66,25 @@
                 </div>
             </aside>
 
-            <!-- Main area: Active encounters -->
+            <!-- Main area: Map with encounters -->
             <main class="encounters-area">
-                <div id="encounters-container" class="encounters-grid">
-                    <!-- Encounters will be dynamically added here -->
+                <div id="map-viewport" class="map-viewport">
+                    <div id="map-canvas" class="map-canvas">
+                        <div id="map-slots" class="map-slots">
+                            <!-- Slots will be dynamically added here -->
+                        </div>
+                        <div id="encounters-container" class="encounters-on-map">
+                            <!-- Encounters will be dynamically added here -->
+                        </div>
+                    </div>
                 </div>
 
                 <div id="empty-state" class="empty-state">
                     <p>No active encounters. Click "Start New Encounter" to begin!</p>
+                </div>
+
+                <div class="map-controls">
+                    <div class="map-hint">💡 Click and drag to pan • Scroll to zoom</div>
                 </div>
             </main>
         </div>

@@ -24,6 +24,29 @@ class UI {
         this.countdownValueEl = this.bossCountdownEl.querySelector('.countdown-value');
         this.upcomingEncountersEl = document.getElementById('upcoming-encounters');
 
+        // Map elements
+        this.mapViewport = document.getElementById('map-viewport');
+        this.mapCanvas = document.getElementById('map-canvas');
+        this.mapSlots = document.getElementById('map-slots');
+
+        // Map state
+        this.mapState = {
+            panX: 100,
+            panY: 100,
+            scale: 1,
+            isDragging: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            panStartX: 0,
+            panStartY: 0
+        };
+
+        // Apply initial transform
+        this.updateMapTransform();
+
+        // Initialize map slots
+        this.initializeMapSlots();
+
         // Templates
         this.encounterTemplate = document.getElementById('encounter-template');
         this.cardTemplate = document.getElementById('card-template');
@@ -33,6 +56,28 @@ class UI {
 
         // Update initial state
         this.updateGameStats();
+    }
+
+    initializeMapSlots() {
+        // Create a simple grid of slots for testing
+        // Later this will be procedurally generated
+        const slots = [
+            { x: 200, y: 200, status: 'unlocked' },  // Starting slot
+            { x: 400, y: 200, status: 'locked' },
+            { x: 600, y: 200, status: 'locked' },
+            { x: 400, y: 400, status: 'locked' },
+            { x: 600, y: 400, status: 'locked' },
+            { x: 800, y: 300, status: 'locked' }
+        ];
+
+        slots.forEach((slot, index) => {
+            const slotEl = document.createElement('div');
+            slotEl.className = `map-slot ${slot.status}`;
+            slotEl.style.left = `${slot.x}px`;
+            slotEl.style.top = `${slot.y}px`;
+            slotEl.setAttribute('data-slot-id', index);
+            this.mapSlots.appendChild(slotEl);
+        });
     }
 
     attachEventListeners() {
@@ -45,6 +90,15 @@ class UI {
         document.getElementById('reset-game-btn').addEventListener('click', () => {
             this.game.resetGame();
         });
+
+        // Map pan controls
+        this.mapViewport.addEventListener('mousedown', (e) => this.handleMapMouseDown(e));
+        this.mapViewport.addEventListener('mousemove', (e) => this.handleMapMouseMove(e));
+        this.mapViewport.addEventListener('mouseup', (e) => this.handleMapMouseUp(e));
+        this.mapViewport.addEventListener('mouseleave', (e) => this.handleMapMouseUp(e));
+
+        // Map zoom controls
+        this.mapViewport.addEventListener('wheel', (e) => this.handleMapWheel(e), { passive: false });
     }
 
     updateGameStats() {
@@ -421,6 +475,64 @@ class UI {
         });
 
         modal.style.display = 'flex';
+    }
+
+    // Map interaction methods
+    handleMapMouseDown(e) {
+        // Don't start drag if clicking on an encounter or button
+        if (e.target.closest('.encounter') || e.target.closest('button')) {
+            return;
+        }
+
+        this.mapState.isDragging = true;
+        this.mapState.dragStartX = e.clientX;
+        this.mapState.dragStartY = e.clientY;
+        this.mapState.panStartX = this.mapState.panX;
+        this.mapState.panStartY = this.mapState.panY;
+    }
+
+    handleMapMouseMove(e) {
+        if (!this.mapState.isDragging) return;
+
+        const dx = e.clientX - this.mapState.dragStartX;
+        const dy = e.clientY - this.mapState.dragStartY;
+
+        this.mapState.panX = this.mapState.panStartX + dx;
+        this.mapState.panY = this.mapState.panStartY + dy;
+
+        this.updateMapTransform();
+    }
+
+    handleMapMouseUp(e) {
+        this.mapState.isDragging = false;
+    }
+
+    handleMapWheel(e) {
+        e.preventDefault();
+
+        // Get mouse position relative to viewport
+        const rect = this.mapViewport.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Calculate zoom
+        const zoomIntensity = 0.1;
+        const delta = e.deltaY > 0 ? -zoomIntensity : zoomIntensity;
+        const newScale = Math.max(0.5, Math.min(2, this.mapState.scale + delta));
+
+        // Zoom towards mouse position
+        const scaleFactor = newScale / this.mapState.scale;
+
+        this.mapState.panX = mouseX - (mouseX - this.mapState.panX) * scaleFactor;
+        this.mapState.panY = mouseY - (mouseY - this.mapState.panY) * scaleFactor;
+        this.mapState.scale = newScale;
+
+        this.updateMapTransform();
+    }
+
+    updateMapTransform() {
+        this.mapCanvas.style.transform =
+            `translate(${this.mapState.panX}px, ${this.mapState.panY}px) scale(${this.mapState.scale})`;
     }
 
     reset() {
