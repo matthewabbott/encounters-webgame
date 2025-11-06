@@ -6,6 +6,151 @@ You're a netrunner infiltrating a corporate blacksite. Each "encounter" is a pie
 
 ---
 
+## NEXT EVOLUTION: Circuit Board Map + Encounter Deck System
+
+**Status**: Design phase - NOT YET IMPLEMENTED
+
+This represents the next major evolution of the game, transforming it from a simple slot-based system into a spatial strategy game with encounter hand management.
+
+### Core Vision: Netrunner Stringing Together Gadgets
+
+The player is a netrunner navigating a **circuit board-style map**, placing and resolving encounters (exploits/gadgets) to breach the system. The aesthetic is geometric, cyberspace, computer-chip inspired.
+
+### Map System
+
+**Visual**: Circuit board with geometric, cyberspace aesthetic (think Tron meets PCB layouts)
+
+**Structure**:
+- **Orientation**: Left-to-right progression
+- **Starting State**: Single unlocked slot
+- **Zoomable/Scrollable**: Similar to Slay the Spire map, but more interactive
+
+**Slot Unlocking**:
+- Completing an encounter unlocks slots "past" it
+- Procedurally generated unlock patterns
+- Pattern influenced by:
+  - Encounter type resolved
+  - Potentially: consumables/items (future)
+  - Possibly: encounter category synergies
+
+**Slot States**:
+1. **Locked**: Not yet accessible (grayed out)
+2. **Unlocked/Empty**: Available for encounter placement
+3. **Active**: Contains in-progress encounter
+4. **Resolved**: Encounter completed successfully
+   - **KEY CHANGE**: Resolved encounters DON'T auto-clear
+   - Cards remain tied up in slot
+   - Must manually collect rewards to free cards
+
+**Strategic Implications**:
+- **Card Lock Strategy**: Leave resolved encounters on board to prevent their cards from appearing in future encounters
+- **Reward Timing**: Collecting rewards returns cards to deck - choose when to do this
+- **Progression Blockers**:
+  - No open slots (all filled with active/resolved encounters)
+  - No encounters in hand to play
+  - Deadlock (all active encounters failed)
+
+### Encounter Deck System
+
+**Core Mechanic**: Encounters are drawn from a deck, not randomly generated
+
+**Encounter Hand**:
+- Default hand size: **3 encounters**
+- Can be modified by upgrades/items
+- Draw new encounter when one is played
+- Empty encounter deck = can't draw more (blocked until more added)
+
+**Encounter Card Display**:
+Shows limited information to allow strategic planning without perfect knowledge:
+
+1. **Difficulty/Rarity Color**:
+   - Green: Easy
+   - Yellow: Medium
+   - Red: Hard
+   - Purple: Boss
+   - Other colors: Special/friendly encounters
+
+2. **Category Symbol**:
+   - Visual icon representing encounter family
+   - Examples: puzzle icon, duel swords, chain link, etc.
+   - Does NOT show exact rules or randomized values
+   - Experienced players can plan based on category
+   - Categories might be:
+     - Sum Puzzles
+     - Sequence Challenges
+     - Collection Challenges
+     - Duels
+     - Multi-Stage
+     - Shops/Events
+
+3. **Type Label** (hostile vs friendly):
+   - Different visual treatment for shops, events, etc.
+   - Color-coded card backgrounds
+
+**Encounter Deck Evolution**:
+- **Dynamic Deck**: Certain encounters shuffle new encounters into deck
+- **Early Choices Matter**: Choosing specific encounters adds more of certain types
+- **Deck Building**: Strategic choices about which encounters to take
+- **Speed Run vs Completionist**:
+  - Speed: Only pick encounters that don't add to deck → rush boss
+  - Completionist: Pick encounters that add more → more rewards, longer run
+
+**Boss Accessibility**:
+- Boss encounter always available at bottom of encounter deck
+- Can rush to boss by depleting deck quickly
+- Or take time to build up with more encounters
+
+**Deck Depletion**:
+- Running out of encounter deck = progression blocker
+- Can't draw new encounters if deck empty
+- Can still:
+  - Complete active encounters
+  - Collect rewards from resolved encounters
+  - Fight boss encounter (if available)
+- Similar to "no open slots" blocker - not game over, but limits options
+
+### Slot Compatibility System (Future)
+
+**Concept**: Some slots have restrictions on encounter types
+
+**Examples**:
+- **Hostile-only slots**: Can't place shops/friendly encounters
+- **Category-specific slots**: Only accepts certain encounter families
+- **Difficulty gates**: Only accepts certain difficulty tiers
+
+**Strategic Depth**:
+- Spatial puzzle element in encounter placement
+- Planning hand management around slot availability
+- Unlock patterns create interesting constraints
+
+**Consumable Interaction**:
+- Items might bypass compatibility restrictions
+- Or modify slot types
+- Or unlock specific slot patterns
+
+### Reward Collection Changes
+
+**Current MVP**: Automatic on encounter completion
+
+**New System**:
+- Resolved encounters remain on board
+- Cards stay locked in the encounter
+- **Manual collection**: Player chooses when to collect
+- Collecting returns cards to deck AND frees the slot
+
+**Strategic Decision**:
+- Collect early: Get rewards + cards back in deck
+- Collect late: Keep cards locked away from future encounters
+- Slot pressure: Need to collect to free slots for new encounters
+
+**Example Scenario**:
+1. Complete encounter with 3 Aces
+2. Leave it on board (Aces can't be drawn by new encounters)
+3. Progress through several encounters without Aces interfering
+4. Eventually collect rewards when you want Aces back or need the slot
+
+---
+
 ## REFINED MVP DESIGN (Current Target)
 
 ### Starting State
