@@ -399,8 +399,70 @@ header h1 {
 
 .header-left {
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.title-row {
+    display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+}
+
+.category-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.category-badge:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+/* Category-specific colors */
+.category-badge[data-category="sum"] {
+    color: #f39c12;
+    border-color: #f39c12;
+}
+
+.category-badge[data-category="sequence"] {
+    color: #3498db;
+    border-color: #3498db;
+}
+
+.category-badge[data-category="collection"] {
+    color: #9b59b6;
+    border-color: #9b59b6;
+}
+
+.category-badge[data-category="duel"] {
+    color: #e74c3c;
+    border-color: #e74c3c;
+}
+
+.category-badge[data-category="multi-stage"] {
+    color: #1abc9c;
+    border-color: #1abc9c;
+}
+
+.category-badge[data-category="simple"] {
+    color: #95a5a6;
+    border-color: #95a5a6;
+}
+
+.category-badge[data-category="hybrid"] {
+    color: #e67e22;
+    border-color: #e67e22;
+    background: linear-gradient(135deg, rgba(230, 126, 34, 0.2), rgba(155, 89, 182, 0.2));
 }
 
 .encounter-title {

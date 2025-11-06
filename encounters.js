@@ -4,6 +4,7 @@
  * - name: Display name
  * - description: What the player needs to do
  * - difficulty: 'easy', 'medium', 'hard', or 'boss'
+ * - category: Encounter family/type (for grouping and future encounter deck)
  * - initialHandSize: How many cards to draw at start
  * - checkWin: Function to check if encounter is won
  * - checkFail: Function to check if encounter is failed
@@ -17,6 +18,55 @@ const Difficulty = {
     BOSS: 'boss'
 };
 
+const EncounterCategory = {
+    SUM: 'sum',           // Target value/budget challenges
+    SEQUENCE: 'sequence', // Order-based challenges
+    COLLECTION: 'collection', // Set gathering (colors, suits, ranks)
+    DUEL: 'duel',         // Opponent-based
+    MULTI_STAGE: 'multi-stage', // Evolving objectives
+    SIMPLE: 'simple',     // Basic single-objective challenges
+    HYBRID: 'hybrid'      // Combination of multiple mechanics
+};
+
+// Category metadata for UI display
+const CategoryInfo = {
+    [EncounterCategory.SUM]: {
+        name: 'Sum Puzzle',
+        icon: '∑',
+        description: 'Reach target values'
+    },
+    [EncounterCategory.SEQUENCE]: {
+        name: 'Sequence',
+        icon: '⟿',
+        description: 'Order matters'
+    },
+    [EncounterCategory.COLLECTION]: {
+        name: 'Collection',
+        icon: '⬡',
+        description: 'Gather matching sets'
+    },
+    [EncounterCategory.DUEL]: {
+        name: 'Duel',
+        icon: '⚔',
+        description: 'Battle opponents'
+    },
+    [EncounterCategory.MULTI_STAGE]: {
+        name: 'Multi-Stage',
+        icon: '⟳',
+        description: 'Evolving challenges'
+    },
+    [EncounterCategory.SIMPLE]: {
+        name: 'Simple',
+        icon: '◆',
+        description: 'Basic objective'
+    },
+    [EncounterCategory.HYBRID]: {
+        name: 'Hybrid',
+        icon: '⊕',
+        description: 'Combined mechanics'
+    }
+};
+
 const EncounterTypes = {
     /**
      * Sum Target (Easy): Play cards that sum to exactly a small target value
@@ -25,6 +75,7 @@ const EncounterTypes = {
         name: "Sum Target",
         description: "Play cards that sum to exactly 6",
         difficulty: Difficulty.EASY,
+        category: EncounterCategory.SUM,
         initialHandSize: 3,
         targetSum: 6,
 
@@ -51,6 +102,7 @@ const EncounterTypes = {
         name: "Sum Target",
         description: "Play cards that sum to exactly 9",
         difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.SUM,
         initialHandSize: 4,
         targetSum: 9,
 
@@ -77,6 +129,7 @@ const EncounterTypes = {
         name: "High Card",
         description: "Play a card with value 3",
         difficulty: Difficulty.EASY,
+        category: EncounterCategory.SIMPLE,
         initialHandSize: 2,
 
         checkWin(encounter) {
@@ -103,6 +156,7 @@ const EncounterTypes = {
         name: "Color Match",
         description: "Play 3 cards of the same color (all red or all black)",
         difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.COLLECTION,
         initialHandSize: 3,
 
         checkWin(encounter) {
@@ -140,6 +194,7 @@ const EncounterTypes = {
         name: "Play All",
         description: "Play all cards in your hand",
         difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.SIMPLE,
         initialHandSize: 3,
 
         checkWin(encounter) {
@@ -164,6 +219,7 @@ const EncounterTypes = {
         name: "Suit Run",
         description: "Play 3 cards of the same suit",
         difficulty: Difficulty.HARD,
+        category: EncounterCategory.COLLECTION,
         initialHandSize: 3,
 
         checkWin(encounter) {
@@ -204,6 +260,7 @@ const EncounterTypes = {
         name: "Pair Up",
         description: "Play exactly 2 cards with the same rank, then stop",
         difficulty: Difficulty.HARD,
+        category: EncounterCategory.COLLECTION,
         initialHandSize: 3,
 
         checkWin(encounter) {
@@ -239,6 +296,7 @@ const EncounterTypes = {
         name: "Final Lock: All In",
         description: "Play ALL cards in your hand AND make them sum to exactly 9",
         difficulty: Difficulty.BOSS,
+        category: EncounterCategory.HYBRID,
         initialHandSize: 4,
         targetSum: 9,
 
@@ -270,6 +328,7 @@ const EncounterTypes = {
         name: "Final Lock: Sequence",
         description: "Play cards in exact sequence: A, then 2, then 3",
         difficulty: Difficulty.BOSS,
+        category: EncounterCategory.SEQUENCE,
         initialHandSize: 4,
 
         checkWin(encounter) {
@@ -305,6 +364,7 @@ const EncounterTypes = {
         name: "Chain Reaction",
         description: "Play 3 cards in strictly ascending order (each higher than the last)",
         difficulty: Difficulty.HARD,
+        category: EncounterCategory.SEQUENCE,
         initialHandSize: 4,
 
         checkWin(encounter) {
@@ -346,6 +406,7 @@ const EncounterTypes = {
         name: "Two-Stage Lock",
         description: "Stage 1: Sum to 5. Stage 2: Play a card matching first stage's suit",
         difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.MULTI_STAGE,
         initialHandSize: 4,
 
         initState(encounter) {
@@ -424,6 +485,7 @@ const EncounterTypes = {
         name: "High Card Duel",
         description: "Best of 3 rounds: Play your highest card each round to beat opponent",
         difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.DUEL,
         initialHandSize: 3,
 
         initState(encounter) {
@@ -504,6 +566,7 @@ const EncounterTypes = {
         name: "Card Auction",
         description: "Cards cost their value. Spend EXACTLY 7 points (no more, no less)",
         difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.SUM,
         initialHandSize: 4,
         budget: 7,
 
@@ -525,4 +588,4 @@ const EncounterTypes = {
     }
 };
 
-export { EncounterTypes, Difficulty };
+export { EncounterTypes, Difficulty, EncounterCategory, CategoryInfo };

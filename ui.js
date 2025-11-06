@@ -1,3 +1,5 @@
+import { CategoryInfo } from './encounters.js';
+
 /**
  * UI Manager class - handles all UI rendering and interactions
  */
@@ -147,6 +149,15 @@ class UI {
         // Update header
         encounterEl.querySelector('.encounter-title').textContent = encounter.type.name;
         encounterEl.querySelector('.encounter-type').textContent = encounter.type.name.toUpperCase();
+
+        // Update category badge
+        const categoryBadge = encounterEl.querySelector('.category-badge');
+        const categoryData = CategoryInfo[encounter.type.category];
+        if (categoryData) {
+            categoryBadge.textContent = categoryData.icon;
+            categoryBadge.title = `${categoryData.name}: ${categoryData.description}`;
+            categoryBadge.setAttribute('data-category', encounter.type.category);
+        }
 
         // Update objective
         encounterEl.querySelector('.encounter-objective').textContent = encounter.type.description;
