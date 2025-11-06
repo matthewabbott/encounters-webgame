@@ -27,6 +27,7 @@ class UI {
         // Map elements
         this.mapViewport = document.getElementById('map-viewport');
         this.mapCanvas = document.getElementById('map-canvas');
+        this.mapConnections = document.getElementById('map-connections');
         this.mapSlots = document.getElementById('map-slots');
 
         // Encounter hand elements
@@ -84,6 +85,9 @@ class UI {
 
         // Create the starting slot at middle lane
         this.createSlot(0, 200, 325, 'unlocked');
+
+        // Draw initial connections
+        this.drawAllConnections();
     }
 
     createSlot(id, x, y, status = 'locked') {
@@ -247,6 +251,57 @@ class UI {
         return this.slotLanes.filter(lane => !occupied.has(lane));
     }
 
+    drawConnectionLine(parentSlot, childX, childY, unlocked = false) {
+        // Draw orthogonal line from parent to child slot
+        // Path: start -> right to midpoint -> down/up to child -> right to child
+        const startX = parentSlot.x;
+        const startY = parentSlot.y;
+        const endX = childX;
+        const endY = childY;
+
+        // Calculate midpoint X (halfway between parent and child)
+        const midX = startX + (endX - startX) * 0.5;
+
+        // Snap path to 40px grid for circuit board aesthetic
+        const gridSize = 40;
+        const snapToGrid = (val) => Math.round(val / gridSize) * gridSize;
+
+        const mid1X = snapToGrid(midX);
+
+        // Create SVG path with orthogonal routing
+        let path = `M ${startX},${startY} `;  // Start at parent center
+        path += `L ${mid1X},${startY} `;       // Go right to midpoint
+        path += `L ${mid1X},${endY} `;         // Go down/up to child Y
+        path += `L ${endX},${endY}`;           // Go right to child
+
+        // Create path element
+        const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathElement.setAttribute('d', path);
+        pathElement.setAttribute('class', `connection-line ${unlocked ? 'unlocked' : ''}`);
+        pathElement.setAttribute('data-parent', parentSlot.id);
+        pathElement.setAttribute('data-child', `${childX},${childY}`);
+
+        this.mapConnections.appendChild(pathElement);
+    }
+
+    drawAllConnections() {
+        // Clear existing connections
+        this.mapConnections.innerHTML = '';
+
+        // Draw lines for all existing slots
+        for (const slot of this.slots) {
+            if (slot.unlockData && slot.unlockData.length > 0) {
+                for (const unlock of slot.unlockData) {
+                    // Check if child slot exists (has been created)
+                    const childSlot = this.slots.find(s => s.id === unlock.id);
+                    const isUnlocked = childSlot && childSlot.status === 'unlocked';
+
+                    this.drawConnectionLine(slot, unlock.x, unlock.y, isUnlocked);
+                }
+            }
+        }
+    }
+
     handleSlotClick(slotId) {
         const slot = this.slots.find(s => s.id === slotId);
         if (!slot) return;
@@ -309,6 +364,9 @@ class UI {
                 }
             }
         });
+
+        // Redraw connections to show unlocked status
+        this.drawAllConnections();
     }
 
     attachEventListeners() {
