@@ -46,7 +46,14 @@ class UI {
             panStartY: 0,
             nextZIndex: 100, // For managing encounter stacking order
             selectedSlotId: null, // For encounter placement
-            tutorialShown: false // Track if tutorial popup has been shown
+            tutorialShown: false, // Track if tutorial popup has been shown
+            // Slot dragging
+            isDraggingSlot: false,
+            draggedSlotId: null,
+            slotDragStartX: 0,
+            slotDragStartY: 0,
+            slotOriginalX: 0,
+            slotOriginalY: 0
         };
 
         // Apply initial transform
@@ -200,6 +207,11 @@ class UI {
             this.handleSlotClick(slot.id);
         });
 
+        slotEl.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            this.handleSlotDragStart(e, slot.id);
+        });
+
         this.mapSlots.appendChild(slotEl);
 
         // Generate unlock data for this slot (but don't create slots yet)
@@ -289,25 +301,61 @@ class UI {
                 console.warn(`No available lane at x=${nextX}, using fallback`);
             }
 
-            // Validate position using spatial grid
-            if (this.canPlaceSlot(nextX, chosenLane)) {
-                // Store unlock data
-                slot.unlockData.push({
-                    id: nextId,
-                    x: nextX,
-                    y: chosenLane
-                });
+            // Find a valid position - try multiple strategies to avoid killing player's run
+            let finalX = nextX;
+            let finalY = chosenLane;
+            let positionFound = false;
 
-                // Reserve this lane at this X for future checks
-                if (!this.occupiedLanes.has(nextX)) {
-                    this.occupiedLanes.set(nextX, new Set());
-                }
-                this.occupiedLanes.get(nextX).add(chosenLane);
-            } else {
-                console.warn(`Cannot place slot at (${nextX}, ${chosenLane}) - spatial grid conflict`);
-                // Don't add this unlock if it would overlap
-                this.nextSlotId--; // Return the ID since we didn't use it
+            // Strategy 1: Try chosen lane at base X
+            if (this.canPlaceSlot(finalX, finalY)) {
+                positionFound = true;
             }
+
+            // Strategy 2: Try all lanes at this X
+            if (!positionFound) {
+                for (const laneY of this.slotLanes) {
+                    if (this.canPlaceSlot(finalX, laneY)) {
+                        finalY = laneY;
+                        positionFound = true;
+                        break;
+                    }
+                }
+            }
+
+            // Strategy 3: Try horizontal offsets (stagger more)
+            if (!positionFound) {
+                for (let xOffset of [-80, 80, -120, 120, -160, 160]) {
+                    const testX = nextX + xOffset;
+                    for (const laneY of this.slotLanes) {
+                        if (this.canPlaceSlot(testX, laneY)) {
+                            finalX = testX;
+                            finalY = laneY;
+                            positionFound = true;
+                            break;
+                        }
+                    }
+                    if (positionFound) break;
+                }
+            }
+
+            // Strategy 4: Force placement (critical for progression - shouldn't happen with proper spacing)
+            if (!positionFound) {
+                console.warn(`Forcing slot placement at (${finalX}, ${finalY}) - no valid position found!`);
+                positionFound = true;
+            }
+
+            // Add the unlock
+            slot.unlockData.push({
+                id: nextId,
+                x: finalX,
+                y: finalY
+            });
+
+            // Reserve this position
+            if (!this.occupiedLanes.has(finalX)) {
+                this.occupiedLanes.set(finalX, new Set());
+            }
+            this.occupiedLanes.get(finalX).add(finalY);
         }
     }
 
@@ -1006,8 +1054,8 @@ class UI {
 
     // Map interaction methods
     handleMapMouseDown(e) {
-        // Don't start drag if clicking on an encounter or button
-        if (e.target.closest('.encounter') || e.target.closest('button')) {
+        // Don't start drag if clicking on an encounter, button, or slot
+        if (e.target.closest('.encounter') || e.target.closest('button') || e.target.closest('.map-slot')) {
             return;
         }
 
@@ -1019,6 +1067,13 @@ class UI {
     }
 
     handleMapMouseMove(e) {
+        // Handle slot dragging
+        if (this.mapState.isDraggingSlot) {
+            this.handleSlotDragMove(e);
+            return;
+        }
+
+        // Handle map panning
         if (!this.mapState.isDragging) return;
 
         const dx = e.clientX - this.mapState.dragStartX;
@@ -1031,7 +1086,129 @@ class UI {
     }
 
     handleMapMouseUp(e) {
+        // Finalize slot drag
+        if (this.mapState.isDraggingSlot) {
+            this.handleSlotDragEnd(e);
+        }
+
         this.mapState.isDragging = false;
+    }
+
+    handleSlotDragStart(e, slotId) {
+        const slot = this.slots.find(s => s.id === slotId);
+        if (!slot) return;
+
+        this.mapState.isDraggingSlot = true;
+        this.mapState.draggedSlotId = slotId;
+        this.mapState.slotDragStartX = e.clientX;
+        this.mapState.slotDragStartY = e.clientY;
+        this.mapState.slotOriginalX = slot.x;
+        this.mapState.slotOriginalY = slot.y;
+
+        // Visual feedback
+        const slotEl = document.querySelector(`[data-slot-id="${slotId}"]`);
+        if (slotEl) {
+            slotEl.style.cursor = 'grabbing';
+            slotEl.style.opacity = '0.7';
+        }
+    }
+
+    handleSlotDragMove(e) {
+        const slot = this.slots.find(s => s.id === this.mapState.draggedSlotId);
+        if (!slot) return;
+
+        // Calculate movement in world coordinates (accounting for map transform)
+        const dx = (e.clientX - this.mapState.slotDragStartX) / this.mapState.scale;
+        const dy = (e.clientY - this.mapState.slotDragStartY) / this.mapState.scale;
+
+        const newX = this.mapState.slotOriginalX + dx;
+        const newY = this.mapState.slotOriginalY + dy;
+
+        // Update slot position temporarily
+        slot.x = newX;
+        slot.y = newY;
+
+        // Update DOM
+        const slotEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+        if (slotEl) {
+            slotEl.style.left = `${newX}px`;
+            slotEl.style.top = `${newY}px`;
+        }
+
+        // Redraw gridlines dynamically
+        this.drawAllConnections();
+    }
+
+    handleSlotDragEnd(e) {
+        const slot = this.slots.find(s => s.id === this.mapState.draggedSlotId);
+        if (!slot) {
+            this.mapState.isDraggingSlot = false;
+            return;
+        }
+
+        // Free old grid cells
+        this.freeGridCells(this.mapState.slotOriginalX, this.mapState.slotOriginalY);
+
+        // Validate new position
+        if (!this.canPlaceSlot(slot.x, slot.y, slot.id)) {
+            // Find nearest valid position ("bump" away from obstacles)
+            const validPos = this.findNearestValidPosition(slot.x, slot.y, slot.id);
+            slot.x = validPos.x;
+            slot.y = validPos.y;
+
+            // Update DOM to final position
+            const slotEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+            if (slotEl) {
+                slotEl.style.left = `${slot.x}px`;
+                slotEl.style.top = `${slot.y}px`;
+            }
+        }
+
+        // Occupy new grid cells
+        this.occupyGridCells(slot.x, slot.y, slot.id);
+
+        // Reset visual feedback
+        const slotEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+        if (slotEl) {
+            slotEl.style.cursor = 'pointer';
+            slotEl.style.opacity = '1';
+        }
+
+        // Redraw connections at final position
+        this.drawAllConnections();
+
+        // Clear drag state
+        this.mapState.isDraggingSlot = false;
+        this.mapState.draggedSlotId = null;
+    }
+
+    findNearestValidPosition(x, y, slotId) {
+        // Try positions in expanding spiral around target position
+        const step = 20; // Test positions every 20px
+        const maxRadius = 200;
+
+        for (let radius = step; radius <= maxRadius; radius += step) {
+            // Try cardinal directions first
+            const testPositions = [
+                { x: x, y: y - radius },      // Up
+                { x: x + radius, y: y },      // Right
+                { x: x, y: y + radius },      // Down
+                { x: x - radius, y: y },      // Left
+                { x: x + radius, y: y - radius }, // Up-right
+                { x: x + radius, y: y + radius }, // Down-right
+                { x: x - radius, y: y + radius }, // Down-left
+                { x: x - radius, y: y - radius }  // Up-left
+            ];
+
+            for (const pos of testPositions) {
+                if (this.canPlaceSlot(pos.x, pos.y, slotId)) {
+                    return pos;
+                }
+            }
+        }
+
+        // If no valid position found, return original
+        return { x, y };
     }
 
     handleMapWheel(e) {
