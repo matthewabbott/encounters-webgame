@@ -143,11 +143,78 @@ class Game {
         this.bossDeclineCount = 0; // Track how many times player declined boss
         this.maxBossDeclines = 2;
 
-        // Pre-generated encounter options (for preview)
+        // Encounter deck system
+        this.encounterDeck = [];
+        this.encounterHand = [];
+        this.encounterHandSize = 3;
+        this.initializeEncounterDeck();
+
+        // Pre-generated encounter options (for preview) - DEPRECATED, will remove
         this.nextEncounterOptions = [];
         this.generateNextEncounterOptions();
 
         this.ui = new UI(this);
+    }
+
+    initializeEncounterDeck() {
+        // Build initial encounter deck
+        // Start with a pool of non-boss encounters
+        const normalEncounters = Object.keys(EncounterTypes)
+            .filter(key => EncounterTypes[key].difficulty !== Difficulty.BOSS)
+            .map(key => EncounterTypes[key]);
+
+        // Add multiple copies of each encounter type for variety
+        this.encounterDeck = [];
+        normalEncounters.forEach(encounterType => {
+            // Add 2 copies of each encounter type
+            this.encounterDeck.push(encounterType);
+            this.encounterDeck.push(encounterType);
+        });
+
+        // Shuffle the deck
+        this.shuffleEncounterDeck();
+
+        // Add boss at the bottom (will be drawn when deck is nearly empty)
+        const bossEncounters = Object.keys(EncounterTypes)
+            .filter(key => EncounterTypes[key].difficulty === Difficulty.BOSS)
+            .map(key => EncounterTypes[key]);
+        if (bossEncounters.length > 0) {
+            const randomBoss = bossEncounters[Math.floor(Math.random() * bossEncounters.length)];
+            this.encounterDeck.push(randomBoss);
+        }
+
+        // Draw initial hand
+        this.fillEncounterHand();
+    }
+
+    shuffleEncounterDeck() {
+        // Fisher-Yates shuffle
+        for (let i = this.encounterDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.encounterDeck[i], this.encounterDeck[j]] = [this.encounterDeck[j], this.encounterDeck[i]];
+        }
+    }
+
+    drawEncounterCard() {
+        if (this.encounterDeck.length === 0) {
+            return null;
+        }
+        return this.encounterDeck.shift(); // Draw from top of deck
+    }
+
+    fillEncounterHand() {
+        // Fill hand up to hand size
+        while (this.encounterHand.length < this.encounterHandSize && this.encounterDeck.length > 0) {
+            const card = this.drawEncounterCard();
+            if (card) {
+                this.encounterHand.push(card);
+            }
+        }
+
+        // Update UI
+        if (this.ui) {
+            this.ui.updateEncounterHand();
+        }
     }
 
     generateNextEncounterOptions() {
@@ -219,7 +286,47 @@ class Game {
         return options.sort(() => Math.random() - 0.5);
     }
 
+    playEncounterFromHand(handIndex, slotId) {
+        // Play an encounter card from hand into a specific slot
+        if (handIndex < 0 || handIndex >= this.encounterHand.length) {
+            console.error('Invalid hand index');
+            return null;
+        }
+
+        // Get the encounter type from hand
+        const encounterType = this.encounterHand[handIndex];
+
+        // Remove from hand
+        this.encounterHand.splice(handIndex, 1);
+
+        // Create encounter with slot assignment
+        const encounterId = this.nextEncounterId++;
+        const encounter = new Encounter(encounterId, encounterType, slotId);
+
+        // Draw initial cards
+        const initialCards = this.deck.draw(encounterType.initialHandSize || 3);
+        if (initialCards.length < encounterType.initialHandSize) {
+            this.ui.showNotification('⚠️ Not Enough Cards', 'Not enough cards in deck!', '⚠️');
+            // Put encounter card back in hand
+            this.encounterHand.splice(handIndex, 0, encounterType);
+            return null;
+        }
+
+        initialCards.forEach(card => encounter.addCardToHand(card));
+
+        this.encounters.set(encounterId, encounter);
+        this.ui.renderEncounter(encounter);
+
+        // Refill hand
+        this.fillEncounterHand();
+
+        this.ui.updateGameStats();
+
+        return encounter;
+    }
+
     startNewEncounter(encounterType) {
+        // DEPRECATED - keeping for compatibility during transition
         // Track boss decline if applicable
         const bossAvailable = this.encountersCleared >= this.encountersNeededForBoss;
         const choseNonBoss = encounterType.difficulty !== Difficulty.BOSS;
