@@ -142,6 +142,9 @@ class UI {
             // Clamp Y to reasonable bounds
             nextY = Math.max(150, Math.min(450, nextY));
 
+            // Check for collisions and adjust position if needed
+            nextY = this.findNonCollidingY(nextX, nextY);
+
             // Store unlock data without creating the slot yet
             slot.unlockData.push({
                 id: nextId,
@@ -149,6 +152,62 @@ class UI {
                 y: nextY
             });
         }
+    }
+
+    findNonCollidingY(x, preferredY) {
+        const minDistance = 140; // Minimum distance between slot centers (120px slot + 20px padding)
+        let currentY = preferredY;
+        let attempts = 0;
+        const maxAttempts = 20;
+
+        while (attempts < maxAttempts) {
+            // Check if this position collides with any existing slot or pending unlock data
+            let hasCollision = false;
+
+            // Check against existing slots
+            for (const slot of this.slots) {
+                const distance = Math.sqrt(Math.pow(x - slot.x, 2) + Math.pow(currentY - slot.y, 2));
+                if (distance < minDistance) {
+                    hasCollision = true;
+                    break;
+                }
+
+                // Also check against this slot's unlock data (pending slots)
+                if (slot.unlockData) {
+                    for (const unlock of slot.unlockData) {
+                        const unlockDist = Math.sqrt(Math.pow(x - unlock.x, 2) + Math.pow(currentY - unlock.y, 2));
+                        if (unlockDist < minDistance) {
+                            hasCollision = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasCollision) break;
+            }
+
+            if (!hasCollision) {
+                return currentY;
+            }
+
+            // Collision detected - try shifting position
+            // Alternate between shifting up and down
+            const shiftAmount = 50;
+            if (attempts % 2 === 0) {
+                currentY = preferredY + (Math.floor(attempts / 2) + 1) * shiftAmount;
+            } else {
+                currentY = preferredY - (Math.floor(attempts / 2) + 1) * shiftAmount;
+            }
+
+            // Clamp to bounds
+            currentY = Math.max(150, Math.min(450, currentY));
+
+            attempts++;
+        }
+
+        // If we couldn't find a non-colliding position after max attempts, return the preferred position
+        // (This should rarely happen with good spacing parameters)
+        return preferredY;
     }
 
     handleSlotClick(slotId) {
