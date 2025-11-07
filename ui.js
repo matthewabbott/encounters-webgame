@@ -82,26 +82,13 @@ class UI {
         this.nextSlotId = 0;
         this.slotSpacing = 280; // Base horizontal spacing between slot columns
 
-        // Spatial grid system for collision detection
+        // Spatial grid system for drag collision detection only
         this.slotSize = 120; // Slot visual size
         this.slotPadding = 40; // Minimum padding between slots
         this.gridCellSize = 60; // Grid cell size (half of slot size)
         this.spatialGrid = new Map(); // Maps "x,y" grid cell to slot ID
 
-        // Define fixed Y "lanes" for slots to snap to
-        // Each slot needs 120px + 40px*2 padding = 200px vertical space
-        // So lanes must be spaced at least 200px apart (using 220px for safety)
-        this.slotLanes = [250, 470, 690]; // 220px spacing between lanes (supports 3 branches)
-
-        // Track which lanes are occupied at each X column
-        // Format: { x: Set(lanes) }
-        this.occupiedLanes = new Map();
-
-        // Track parent Y positions for horizontal staggering
-        // Format: { x: [parentY1, parentY2, ...] }
-        this.parentYAtColumn = new Map();
-
-        // Create the starting slot at top lane
+        // Create the starting slot
         this.createSlot(0, 200, 250, 'unlocked');
 
         // Draw initial connections
@@ -190,13 +177,7 @@ class UI {
 
         this.slots.push(slot);
 
-        // Mark this lane as occupied at this X position
-        if (!this.occupiedLanes.has(x)) {
-            this.occupiedLanes.set(x, new Set());
-        }
-        this.occupiedLanes.get(x).add(y);
-
-        // Mark spatial grid cells as occupied
+        // Mark spatial grid cells as occupied (for drag collision detection)
         this.occupyGridCells(x, y, id);
 
         // Create DOM elements: port > socket > slot
@@ -249,235 +230,36 @@ class UI {
     }
 
     generateUnlockDataForSlot(slot) {
-        // Each slot defines 1-3 new slots that will unlock
+        // Simple tree layout: each slot defines 1-3 new slots
         const numUnlocks = Math.floor(Math.random() * 3) + 1; // 1-3 unlocks
 
-        // Calculate base X position with horizontal staggering
-        let nextX = slot.x + this.slotSpacing;
+        // Calculate position for children (fixed distance from parent)
+        const childX = slot.x + this.slotSpacing;
 
-        // Track parent Y positions at parent column for staggering
-        if (!this.parentYAtColumn.has(slot.x)) {
-            this.parentYAtColumn.set(slot.x, []);
-        }
-        const parentsAtThisColumn = this.parentYAtColumn.get(slot.x);
-
-        // If other slots at this X have already generated children, stagger horizontally
-        if (parentsAtThisColumn.length > 0) {
-            // Stagger based on how many parents exist at this column
-            const staggerIndex = parentsAtThisColumn.length;
-            nextX += (staggerIndex % 3 - 1) * 40; // Stagger by -40, 0, +40
-        }
-
-        parentsAtThisColumn.push(slot.y);
-
-        // Determine preferred lanes based on parent position
-        const parentLaneIndex = this.findNearestLaneIndex(slot.y);
-        let preferredLanes = [];
-
+        // Spread children vertically based on count
+        let childYOffsets = [];
         if (numUnlocks === 1) {
-            // Single unlock - prefer same lane or adjacent
-            preferredLanes = [parentLaneIndex, parentLaneIndex - 1, parentLaneIndex + 1];
+            // Single child: same Y as parent (straight ahead)
+            childYOffsets = [0];
         } else if (numUnlocks === 2) {
-            // Two unlocks - prefer lanes above and below parent
-            preferredLanes = [parentLaneIndex - 1, parentLaneIndex + 1, parentLaneIndex - 2, parentLaneIndex + 2];
+            // Two children: spread above and below parent
+            childYOffsets = [-100, 100];
         } else {
-            // Three unlocks - spread across lanes
-            preferredLanes = [
-                parentLaneIndex - 1,
-                parentLaneIndex,
-                parentLaneIndex + 1,
-                parentLaneIndex - 2,
-                parentLaneIndex + 2
-            ];
+            // Three children: spread across three positions
+            childYOffsets = [-140, 0, 140];
         }
 
-        // Get available lanes at the target X position
-        const availableLanes = this.getAvailableLanes(nextX);
-
-        // Assign unlocks to lanes
+        // Create unlock data for each child
         for (let i = 0; i < numUnlocks; i++) {
             const nextId = this.nextSlotId++;
+            const childY = slot.y + childYOffsets[i];
 
-            // Find best available lane from preferred list
-            let chosenLane = null;
-            for (const laneIndex of preferredLanes) {
-                if (laneIndex >= 0 && laneIndex < this.slotLanes.length) {
-                    const laneY = this.slotLanes[laneIndex];
-                    if (availableLanes.includes(laneY)) {
-                        chosenLane = laneY;
-                        // Mark as taken for this generation cycle
-                        availableLanes.splice(availableLanes.indexOf(laneY), 1);
-                        break;
-                    }
-                }
-            }
-
-            // If no preferred lane available, use any available lane
-            if (chosenLane === null && availableLanes.length > 0) {
-                chosenLane = availableLanes[0];
-                availableLanes.splice(0, 1);
-            }
-
-            // If still no lane (all occupied), use fallback position
-            if (chosenLane === null) {
-                chosenLane = this.slotLanes[Math.floor(this.slotLanes.length / 2)];
-                console.warn(`No available lane at x=${nextX}, using fallback`);
-            }
-
-            // Find a valid position - try multiple strategies to avoid killing player's run
-            let finalX = nextX;
-            let finalY = chosenLane;
-            let positionFound = false;
-
-            // Strategy 1: Try chosen lane at base X
-            if (this.canPlaceSlot(finalX, finalY)) {
-                positionFound = true;
-            }
-
-            // Strategy 2: Try all lanes at this X
-            if (!positionFound) {
-                for (const laneY of this.slotLanes) {
-                    if (this.canPlaceSlot(finalX, laneY)) {
-                        finalY = laneY;
-                        positionFound = true;
-                        break;
-                    }
-                }
-            }
-
-            // Strategy 3: Try horizontal offsets (stagger more)
-            if (!positionFound) {
-                for (let xOffset of [-80, 80, -120, 120, -160, 160]) {
-                    const testX = nextX + xOffset;
-                    for (const laneY of this.slotLanes) {
-                        if (this.canPlaceSlot(testX, laneY)) {
-                            finalX = testX;
-                            finalY = laneY;
-                            positionFound = true;
-                            break;
-                        }
-                    }
-                    if (positionFound) break;
-                }
-            }
-
-            // Strategy 4: Try much larger horizontal offsets (aggressive search)
-            if (!positionFound) {
-                for (let xOffset of [-240, 240, -320, 320, -400, 400]) {
-                    const testX = nextX + xOffset;
-                    for (const laneY of this.slotLanes) {
-                        if (this.canPlaceSlot(testX, laneY)) {
-                            finalX = testX;
-                            finalY = laneY;
-                            positionFound = true;
-                            console.log(`Found position with aggressive offset: (${finalX}, ${finalY})`);
-                            break;
-                        }
-                    }
-                    if (positionFound) break;
-                }
-            }
-
-            // Strategy 5: Try farther forward (skip a column)
-            if (!positionFound) {
-                const farX = nextX + this.slotSpacing;
-                for (const laneY of this.slotLanes) {
-                    if (this.canPlaceSlot(farX, laneY)) {
-                        finalX = farX;
-                        finalY = laneY;
-                        positionFound = true;
-                        console.log(`Found position by skipping ahead: (${finalX}, ${finalY})`);
-                        break;
-                    }
-                }
-            }
-
-            // If still no valid position found, SKIP this slot (don't place invalid)
-            if (!positionFound) {
-                console.error(`CRITICAL: Cannot find valid position for slot ${nextId} near (${nextX}, ${chosenLane})`);
-                console.error('Skipping slot generation to prevent overlap. Consider increasing map size or slot spacing.');
-                this.nextSlotId--; // Return the ID since we didn't use it
-                continue; // Skip this unlock, don't add it
-            }
-
-            // Add the unlock (only if valid position found)
             slot.unlockData.push({
                 id: nextId,
-                x: finalX,
-                y: finalY
+                x: childX,
+                y: childY
             });
-
-            // Reserve this position
-            if (!this.occupiedLanes.has(finalX)) {
-                this.occupiedLanes.set(finalX, new Set());
-            }
-            this.occupiedLanes.get(finalX).add(finalY);
         }
-    }
-
-    findNearestLaneIndex(y) {
-        // Find the index of the lane nearest to the given Y position
-        let nearestIndex = 0;
-        let minDistance = Math.abs(y - this.slotLanes[0]);
-
-        for (let i = 1; i < this.slotLanes.length; i++) {
-            const distance = Math.abs(y - this.slotLanes[i]);
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearestIndex = i;
-            }
-        }
-
-        return nearestIndex;
-    }
-
-    getAvailableLanes(x) {
-        // Get list of lanes not occupied at this X position
-        const occupied = this.occupiedLanes.get(x) || new Set();
-        return this.slotLanes.filter(lane => !occupied.has(lane));
-    }
-
-    validateAndRecoverGridState() {
-        // Rebuild occupiedLanes from actual slot positions to fix desync
-        console.log('Validating grid state...');
-
-        const newOccupiedLanes = new Map();
-        let mismatchCount = 0;
-
-        // Rebuild from actual slot positions
-        for (const slot of this.slots) {
-            const colX = slot.x;
-            const laneY = slot.y;
-
-            if (!newOccupiedLanes.has(colX)) {
-                newOccupiedLanes.set(colX, new Set());
-            }
-            newOccupiedLanes.get(colX).add(laneY);
-
-            // Verify spatial grid is also correct
-            const centerGrid = this.worldToGrid(colX, laneY);
-            const key = `${centerGrid.gridX},${centerGrid.gridY}`;
-            if (this.spatialGrid.get(key) !== slot.id) {
-                console.warn(`Spatial grid mismatch at slot ${slot.id} (${colX}, ${laneY}), rebuilding...`);
-                mismatchCount++;
-                // Re-occupy in spatial grid
-                this.freeGridCells(colX, laneY);
-                this.occupyGridCells(colX, laneY, slot.id);
-            }
-        }
-
-        // Check if recovery is needed
-        const oldSize = Array.from(this.occupiedLanes.values()).reduce((sum, set) => sum + set.size, 0);
-        const newSize = Array.from(newOccupiedLanes.values()).reduce((sum, set) => sum + set.size, 0);
-
-        if (oldSize !== newSize || mismatchCount > 0) {
-            console.warn(`Grid state recovered: ${oldSize} -> ${newSize} entries, ${mismatchCount} spatial grid fixes`);
-            this.occupiedLanes = newOccupiedLanes;
-            return true; // State was recovered
-        }
-
-        console.log('Grid state OK');
-        return false; // No recovery needed
     }
 
     drawConnectionLine(parentSlot, childX, childY, unlocked = false) {
@@ -605,14 +387,12 @@ class UI {
     }
 
     unlockSlotsFromSlot(slotId) {
-        // Validate grid state before creating new slots
-        this.validateAndRecoverGridState();
-
         // Find the slot that was completed
         const completedSlot = this.slots.find(s => s.id === slotId);
         if (!completedSlot || !completedSlot.unlockData) return;
 
         // Create and unlock new slots based on unlock data
+        // With tree layout, no collision detection needed - positions are guaranteed valid
         completedSlot.unlockData.forEach(unlockInfo => {
             // Check if slot already exists
             let slot = this.slots.find(s => s.id === unlockInfo.id);
@@ -1403,37 +1183,29 @@ class UI {
         // Occupy new grid cells
         this.occupyGridCells(slot.x, slot.y, slot.id);
 
-        // CRITICAL FIX: Update occupiedLanes to match new position
-        const oldX = this.mapState.slotOriginalX;
-        const oldY = this.mapState.slotOriginalY;
-        const newX = slot.x;
-        const newY = slot.y;
-
-        if (oldX !== newX || oldY !== newY) {
-            // Remove from old position in occupiedLanes
-            if (this.occupiedLanes.has(oldX)) {
-                this.occupiedLanes.get(oldX).delete(oldY);
-                if (this.occupiedLanes.get(oldX).size === 0) {
-                    this.occupiedLanes.delete(oldX);
+        // Update all parent slots' unlockData to track this slot's new position
+        for (const parentSlot of this.slots) {
+            if (parentSlot.unlockData) {
+                for (const unlockInfo of parentSlot.unlockData) {
+                    if (unlockInfo.id === slot.id) {
+                        // Update the unlock data to point to new position
+                        unlockInfo.x = slot.x;
+                        unlockInfo.y = slot.y;
+                    }
                 }
             }
-
-            // Add to new position in occupiedLanes
-            if (!this.occupiedLanes.has(newX)) {
-                this.occupiedLanes.set(newX, new Set());
-            }
-            this.occupiedLanes.get(newX).add(newY);
         }
 
         // Reset visual feedback
-        const slotEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
-        if (slotEl) {
-            slotEl.style.cursor = 'pointer';
-            slotEl.style.opacity = '1';
+        const portElFinal = document.querySelector(`[data-slot-id="${slot.id}"]`);
+        if (portElFinal) {
+            portElFinal.style.cursor = 'pointer';
+            portElFinal.style.opacity = '1';
         }
 
-        // Redraw connections at final position
+        // Redraw connections at final position (now using updated unlockData)
         this.drawAllConnections();
+        this.drawAllTethers();
 
         // Clear drag state
         this.mapState.isDraggingSlot = false;
@@ -1498,14 +1270,44 @@ class UI {
     }
 
     reset() {
+        // Clear all encounter elements
         this.encountersContainer.innerHTML = '';
+        this.encounterTethers.innerHTML = '';
 
-        // Clear all slots and their DOM elements
-        this.mapSlots.innerHTML = '';
-        this.slots = [];
+        // Re-lock all slots except the starting slot (id 0)
+        for (const slot of this.slots) {
+            slot.encounterId = null; // Clear encounter assignments
 
-        // Reinitialize slots from scratch
-        this.initializeMapSlots();
+            if (slot.id === 0) {
+                // Keep starting slot unlocked
+                slot.status = 'unlocked';
+            } else {
+                // Lock all other slots
+                slot.status = 'locked';
+
+                // Update DOM to show locked state
+                const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+                if (portEl) {
+                    const slotEl = portEl.querySelector('.map-slot');
+                    if (slotEl) {
+                        slotEl.classList.remove('unlocked');
+                        slotEl.classList.add('locked');
+                    }
+                }
+            }
+
+            // Clear any minimized encounters from sockets
+            const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+            if (portEl) {
+                const miniEl = portEl.querySelector('.encounter-mini');
+                if (miniEl) {
+                    miniEl.remove();
+                }
+            }
+        }
+
+        // Redraw connections (will show all as locked except from slot 0)
+        this.drawAllConnections();
 
         // Reset tutorial flag
         this.mapState.tutorialShown = false;
