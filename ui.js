@@ -207,15 +207,6 @@ class UI {
         portEl.style.top = `${slot.y}px`;
         portEl.setAttribute('data-slot-id', slot.id);
 
-        // Port handles dragging (when no encounter card selected)
-        portEl.addEventListener('mousedown', (e) => {
-            // Only handle if clicking the port itself (not bubbling from socket)
-            if (e.target === portEl) {
-                e.stopPropagation();
-                this.handleSlotDragStart(e, slot.id);
-            }
-        });
-
         // Socket is the inner container that accepts encounters
         const socketEl = document.createElement('div');
         socketEl.className = 'map-socket';
@@ -224,6 +215,17 @@ class UI {
         socketEl.addEventListener('click', (e) => {
             e.stopPropagation();
             this.handleSlotClick(slot.id);
+        });
+
+        // Prevent port dragging when clicking socket
+        socketEl.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+        });
+
+        // Port handles dragging (when no encounter card selected)
+        portEl.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            this.handleSlotDragStart(e, slot.id);
         });
 
         // Slot element shows the status and contains minimized encounter
@@ -567,10 +569,17 @@ class UI {
 
         // If a card is selected from hand, play it
         if (this.mapState.selectedHandIndex !== null) {
-            const result = this.game.playEncounterFromHand(this.mapState.selectedHandIndex, slotId);
-            if (result) {
+            // Validate that the index is still valid (hand might have changed)
+            if (this.mapState.selectedHandIndex >= 0 && this.mapState.selectedHandIndex < this.game.encounterHand.length) {
+                const result = this.game.playEncounterFromHand(this.mapState.selectedHandIndex, slotId);
+                if (result) {
+                    this.clearSlotSelection();
+                    this.mapState.tutorialShown = true;
+                }
+            } else {
+                // Index is out of range, clear it and prompt user to select again
                 this.clearSlotSelection();
-                this.mapState.tutorialShown = true;
+                this.game.ui.showNotification('Selection Lost', 'Please select an encounter card from your hand again.', '⚠️');
             }
         } else {
             // No card selected - prompt to select from hand (only first time)

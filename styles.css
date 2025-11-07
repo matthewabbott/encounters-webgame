@@ -361,8 +361,8 @@ header h1 {
     transition: transform 0.05s ease-out;
     /* Circuit board grid pattern - scales with zoom transform */
     background-image:
-        linear-gradient(rgba(100, 255, 218, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(100, 255, 218, 0.03) 1px, transparent 1px);
+        linear-gradient(rgba(100, 255, 218, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 255, 218, 0.08) 1px, transparent 1px);
     background-size: 40px 40px;
 }
 
