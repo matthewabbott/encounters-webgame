@@ -28,6 +28,7 @@ class UI {
         this.mapViewport = document.getElementById('map-viewport');
         this.mapCanvas = document.getElementById('map-canvas');
         this.mapConnections = document.getElementById('map-connections');
+        this.encounterTethers = document.getElementById('encounter-tethers');
         this.mapSlots = document.getElementById('map-slots');
 
         // Encounter hand elements
@@ -198,24 +199,41 @@ class UI {
         // Mark spatial grid cells as occupied
         this.occupyGridCells(x, y, id);
 
-        // Create DOM element
-        const slotEl = document.createElement('div');
-        slotEl.className = `map-slot ${slot.status}`;
-        slotEl.style.left = `${slot.x}px`;
-        slotEl.style.top = `${slot.y}px`;
-        slotEl.setAttribute('data-slot-id', slot.id);
+        // Create DOM elements: port > socket > slot
+        // Port is the outer container that can be dragged
+        const portEl = document.createElement('div');
+        portEl.className = 'map-port';
+        portEl.style.left = `${slot.x}px`;
+        portEl.style.top = `${slot.y}px`;
+        portEl.setAttribute('data-slot-id', slot.id);
 
-        slotEl.addEventListener('click', (e) => {
+        // Port handles dragging (when no encounter card selected)
+        portEl.addEventListener('mousedown', (e) => {
+            // Only handle if clicking the port itself (not bubbling from socket)
+            if (e.target === portEl) {
+                e.stopPropagation();
+                this.handleSlotDragStart(e, slot.id);
+            }
+        });
+
+        // Socket is the inner container that accepts encounters
+        const socketEl = document.createElement('div');
+        socketEl.className = 'map-socket';
+
+        // Socket handles encounter placement
+        socketEl.addEventListener('click', (e) => {
             e.stopPropagation();
             this.handleSlotClick(slot.id);
         });
 
-        slotEl.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            this.handleSlotDragStart(e, slot.id);
-        });
+        // Slot element shows the status and contains minimized encounter
+        const slotEl = document.createElement('div');
+        slotEl.className = `map-slot ${slot.status}`;
 
-        this.mapSlots.appendChild(slotEl);
+        // Assemble the structure
+        socketEl.appendChild(slotEl);
+        portEl.appendChild(socketEl);
+        this.mapSlots.appendChild(portEl);
 
         // Generate unlock data for this slot (but don't create slots yet)
         this.generateUnlockDataForSlot(slot);
@@ -511,6 +529,33 @@ class UI {
         }
     }
 
+    drawTether(portX, portY, windowX, windowY) {
+        // Draw a simple line from port to floating window
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', portX);
+        line.setAttribute('y1', portY);
+        line.setAttribute('x2', windowX);
+        line.setAttribute('y2', windowY + 200); // Connect to top of window (offset by 200px)
+        line.setAttribute('class', 'tether-line');
+
+        this.encounterTethers.appendChild(line);
+    }
+
+    drawAllTethers() {
+        // Clear existing tethers
+        this.encounterTethers.innerHTML = '';
+
+        // Draw tethers for all active (non-minimized) encounters
+        for (const encounter of this.game.encounters.values()) {
+            if (!encounter.minimized && encounter.slotId !== null) {
+                const slot = this.slots.find(s => s.id === encounter.slotId);
+                if (slot) {
+                    this.drawTether(slot.x, slot.y, slot.x, slot.y - 200);
+                }
+            }
+        }
+    }
+
     handleSlotClick(slotId) {
         const slot = this.slots.find(s => s.id === slotId);
         if (!slot) return;
@@ -569,10 +614,13 @@ class UI {
             } else if (slot.status === 'locked') {
                 // Unlock existing slot
                 slot.status = 'unlocked';
-                const slotEl = document.querySelector(`[data-slot-id="${unlockInfo.id}"]`);
-                if (slotEl) {
-                    slotEl.classList.remove('locked');
-                    slotEl.classList.add('unlocked');
+                const portEl = document.querySelector(`[data-slot-id="${unlockInfo.id}"]`);
+                if (portEl) {
+                    const slotEl = portEl.querySelector('.map-slot');
+                    if (slotEl) {
+                        slotEl.classList.remove('locked');
+                        slotEl.classList.add('unlocked');
+                    }
                 }
             }
         });
@@ -759,30 +807,101 @@ class UI {
     }
 
     renderEncounter(encounter) {
-        let encounterEl = document.querySelector(`[data-encounter-id="${encounter.id}"]`);
+        // Assign encounter to slot if not already assigned
+        if (encounter.slotId === null) {
+            const slot = this.assignEncounterToSlot(encounter);
+            if (!slot) {
+                console.error('No available slot for encounter!');
+                return;
+            }
+        }
+
+        const slot = this.slots.find(s => s.id === encounter.slotId);
+        if (!slot) {
+            console.error('Could not find slot for encounter!');
+            return;
+        }
+
+        // Render minimized version in socket (always visible)
+        this.renderMinimizedEncounter(encounter, slot);
+
+        // Render or hide floating window based on minimized state
+        if (!encounter.minimized) {
+            this.renderFloatingEncounter(encounter, slot);
+        } else {
+            // Hide floating window if it exists
+            const floatingEl = document.querySelector(`[data-encounter-id="${encounter.id}"].encounter-floating`);
+            if (floatingEl) {
+                floatingEl.style.display = 'none';
+            }
+        }
+
+        // Redraw all tethers (for all active encounters)
+        this.drawAllTethers();
+    }
+
+    renderMinimizedEncounter(encounter, slot) {
+        const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+        if (!portEl) return;
+
+        const socketEl = portEl.querySelector('.map-socket');
+        if (!socketEl) return;
+
+        // Check if minimized version already exists
+        let miniEl = socketEl.querySelector('.encounter-mini');
+        if (!miniEl) {
+            miniEl = document.createElement('div');
+            miniEl.className = 'encounter-mini';
+            socketEl.appendChild(miniEl);
+        }
+
+        // Update minimized encounter content
+        miniEl.setAttribute('data-encounter-id', encounter.id);
+
+        // Get category info
+        const categoryData = CategoryInfo[encounter.type.category];
+
+        // Set content and status class
+        miniEl.className = 'encounter-mini';
+        if (encounter.completed && !encounter.rewardsCollected) {
+            miniEl.classList.add('rewards-available');
+        } else if (encounter.completed) {
+            miniEl.classList.add('completed');
+        } else if (encounter.failed) {
+            miniEl.classList.add('failed');
+        } else {
+            miniEl.classList.add('active');
+        }
+
+        // Show category icon and status indicator
+        miniEl.innerHTML = `
+            <div class="mini-icon">${categoryData?.icon || '?'}</div>
+            <div class="mini-status">${encounter.completed ? '✓' : encounter.failed ? '✗' : '▶'}</div>
+        `;
+
+        // Click to maximize
+        miniEl.onclick = (e) => {
+            e.stopPropagation();
+            if (encounter.minimized) {
+                this.game.toggleEncounterMinimize(encounter.id);
+            }
+        };
+    }
+
+    renderFloatingEncounter(encounter, slot) {
+        let encounterEl = document.querySelector(`[data-encounter-id="${encounter.id}"].encounter-floating`);
 
         if (!encounterEl) {
-            // Assign encounter to slot if not already assigned
-            if (encounter.slotId === null) {
-                const slot = this.assignEncounterToSlot(encounter);
-                if (!slot) {
-                    console.error('No available slot for encounter!');
-                    return;
-                }
-            }
-
-            // Create new encounter element
+            // Create new floating encounter element
             encounterEl = this.encounterTemplate.content.cloneNode(true).querySelector('.encounter');
             encounterEl.setAttribute('data-encounter-id', encounter.id);
             encounterEl.classList.add(`difficulty-${encounter.type.difficulty}`);
             encounterEl.classList.add('encounter-on-map');
+            encounterEl.classList.add('encounter-floating');
 
-            // Position at slot coordinates
-            const slot = this.slots.find(s => s.id === encounter.slotId);
-            if (slot) {
-                encounterEl.style.left = `${slot.x}px`;
-                encounterEl.style.top = `${slot.y}px`;
-            }
+            // Position at slot coordinates (will be offset above the slot)
+            encounterEl.style.left = `${slot.x}px`;
+            encounterEl.style.top = `${slot.y - 200}px`; // Offset above the port
 
             // Set initial z-index
             encounterEl.style.zIndex = this.mapState.nextZIndex++;
@@ -800,6 +919,9 @@ class UI {
 
             // Attach encounter-specific event listeners
             this.attachEncounterListeners(encounterEl, encounter.id);
+        } else {
+            // Show it if it was hidden
+            encounterEl.style.display = 'block';
         }
 
         // Update encounter state classes
@@ -1177,6 +1299,11 @@ class UI {
     }
 
     handleSlotDragStart(e, slotId) {
+        // Don't start drag if user has an encounter card selected (they want to place it)
+        if (this.mapState.selectedHandIndex !== null) {
+            return;
+        }
+
         const slot = this.slots.find(s => s.id === slotId);
         if (!slot) return;
 
@@ -1236,6 +1363,18 @@ class UI {
 
         // Free old grid cells
         this.freeGridCells(this.mapState.slotOriginalX, this.mapState.slotOriginalY);
+
+        // Snap to 40px grid
+        const gridSize = 40;
+        slot.x = Math.round(slot.x / gridSize) * gridSize;
+        slot.y = Math.round(slot.y / gridSize) * gridSize;
+
+        // Update DOM with snapped position
+        const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+        if (portEl) {
+            portEl.style.left = `${slot.x}px`;
+            portEl.style.top = `${slot.y}px`;
+        }
 
         // Validate new position
         if (!this.canPlaceSlot(slot.x, slot.y, slot.id)) {

@@ -94,7 +94,7 @@ class Encounter {
         this.completed = false;
         this.failed = false;
         this.rewardsCollected = false;
-        this.minimized = false;
+        this.minimized = true; // Start minimized, player can expand to interact
         this.slotId = slotId; // Which map slot this encounter is in
     }
 
