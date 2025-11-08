@@ -461,6 +461,10 @@ header h1 {
     justify-content: center;
     cursor: grab;
     transition: opacity 0.2s ease;
+    user-select: none; /* Prevent text selection during drag */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
     /* Circuit board frame aesthetic */
     border: 3px solid rgba(100, 255, 218, 0.4);
     border-radius: 4px;
@@ -487,6 +491,10 @@ header h1 {
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    user-select: none; /* Prevent text selection */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .map-socket:hover {

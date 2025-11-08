@@ -198,13 +198,19 @@ class UI {
             this.handleSlotClick(slot.id);
         });
 
-        // Prevent port dragging when clicking socket
+        // Socket allows dragging when no card selected (makes drag area larger)
         socketEl.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent text selection
             e.stopPropagation();
+
+            // Allow dragging from socket too (not just port frame)
+            // This makes the draggable area much larger and easier to grab
+            this.handleSlotDragStart(e, slot.id);
         });
 
         // Port handles dragging (when no encounter card selected)
         portEl.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent text selection and default drag behavior
             e.stopPropagation();
             this.handleSlotDragStart(e, slot.id);
         });
@@ -1214,11 +1220,13 @@ class UI {
 
     findNearestValidPosition(x, y, slotId) {
         // Try positions in expanding spiral around target position
-        const step = 20; // Test positions every 20px
-        const maxRadius = 200;
+        // All positions snapped to 40px grid
+        const gridSize = 40;
+        const step = 40; // Test positions every grid cell (40px)
+        const maxRadius = 320; // Expand search radius
 
         for (let radius = step; radius <= maxRadius; radius += step) {
-            // Try cardinal directions first
+            // Try cardinal directions first (up, right, down, left)
             const testPositions = [
                 { x: x, y: y - radius },      // Up
                 { x: x + radius, y: y },      // Right
@@ -1231,14 +1239,21 @@ class UI {
             ];
 
             for (const pos of testPositions) {
-                if (this.canPlaceSlot(pos.x, pos.y, slotId)) {
-                    return pos;
+                // Snap to grid
+                const snappedX = Math.round(pos.x / gridSize) * gridSize;
+                const snappedY = Math.round(pos.y / gridSize) * gridSize;
+
+                if (this.canPlaceSlot(snappedX, snappedY, slotId)) {
+                    return { x: snappedX, y: snappedY };
                 }
             }
         }
 
-        // If no valid position found, return original
-        return { x, y };
+        // If no valid position found nearby, return grid-snapped original
+        return {
+            x: Math.round(x / gridSize) * gridSize,
+            y: Math.round(y / gridSize) * gridSize
+        };
     }
 
     handleMapWheel(e) {
