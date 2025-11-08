@@ -543,12 +543,30 @@ class UI {
         }
     }
 
+    showBossOnDeck(show) {
+        const container = document.getElementById('encounter-hand-container');
+        const deckCountEl = document.getElementById('encounter-deck-count');
+
+        if (show) {
+            container.classList.add('boss-ready');
+            deckCountEl.classList.add('boss-on-top');
+        } else {
+            container.classList.remove('boss-ready');
+            deckCountEl.classList.remove('boss-on-top');
+        }
+    }
+
     updateEncounterHand() {
         // Clear current hand display
         this.encounterHandEl.innerHTML = '';
 
         // Update deck count
         this.encounterDeckCountEl.textContent = this.game.encounterDeck.length;
+
+        // Check if boss is on top of deck and show indicator
+        const bossOnTop = this.game.encounterDeck.length > 0 &&
+                         this.game.encounterDeck[0].difficulty === 'boss';
+        this.showBossOnDeck(bossOnTop);
 
         // Add empty class if hand is empty
         if (this.game.encounterHand.length === 0) {

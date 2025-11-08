@@ -1364,6 +1364,53 @@ footer {
     }
 }
 
+/* Boss on deck indicator */
+.encounter-hand-container.boss-ready {
+    border-top: 3px solid #dc2626;
+    box-shadow: 0 -8px 24px rgba(220, 38, 38, 0.4);
+    animation: boss-container-glow 2s ease-in-out infinite;
+}
+
+@keyframes boss-container-glow {
+    0%, 100% {
+        box-shadow: 0 -8px 24px rgba(220, 38, 38, 0.4);
+    }
+    50% {
+        box-shadow: 0 -12px 36px rgba(220, 38, 38, 0.7);
+    }
+}
+
+.deck-count-label #encounter-deck-count.boss-on-top {
+    color: #dc2626;
+    font-weight: 900;
+    font-size: 1.2rem;
+    animation: boss-deck-pulse 1.5s ease-in-out infinite;
+    text-shadow: 0 0 10px rgba(220, 38, 38, 0.8);
+}
+
+.deck-count-label #encounter-deck-count.boss-on-top::after {
+    content: ' 👾';
+    animation: boss-icon-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes boss-deck-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+@keyframes boss-icon-pulse {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
 .encounter-card {
     width: 200px;
     height: 120px;

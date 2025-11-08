@@ -549,9 +549,9 @@ class Game {
         // Track progress
         this.encountersCleared++;
 
-        // Check if we should force boss into hand
+        // Check if we should force boss to top of deck
         if (!wasBoss && this.encountersCleared >= this.encountersNeededForBoss && !this.bossDefeated) {
-            this.forceBossIntoHand();
+            this.forceBossToTopOfDeck();
         }
 
         if (wasBoss) {
@@ -580,8 +580,13 @@ class Game {
         this.ui.updateGameStats();
     }
 
-    forceBossIntoHand() {
-        // Check if boss is already in hand
+    forceBossToTopOfDeck() {
+        // Check if boss is already at top of deck
+        if (this.encounterDeck.length > 0 && this.encounterDeck[0].difficulty === Difficulty.BOSS) {
+            return; // Already at top
+        }
+
+        // Check if boss is in hand (already drawn)
         const hasBossInHand = this.encounterHand.some(enc => enc.difficulty === Difficulty.BOSS);
         if (hasBossInHand) return;
 
@@ -589,21 +594,18 @@ class Game {
         const bossIndex = this.encounterDeck.findIndex(enc => enc.difficulty === Difficulty.BOSS);
         if (bossIndex === -1) return; // No boss in deck (already drawn or doesn't exist)
 
-        // Remove boss from deck
+        // Remove boss from current position in deck
         const boss = this.encounterDeck.splice(bossIndex, 1)[0];
 
-        // Add to hand (replace oldest card if hand is full)
-        if (this.encounterHand.length >= this.encounterHandSize) {
-            // Put the replaced card back at bottom of deck
-            const replaced = this.encounterHand.shift();
-            this.encounterDeck.push(replaced);
-        }
+        // Place at top of deck (index 0, so it's drawn next)
+        this.encounterDeck.unshift(boss);
 
-        this.encounterHand.push(boss);
+        // Update UI to show boss is ready
         this.ui.updateEncounterHand();
+        this.ui.showBossOnDeck(true);
 
         // Show notification
-        this.ui.showNotification('⚠️ BOSS AVAILABLE', 'A boss encounter has been added to your hand!', '👾');
+        this.ui.showNotification('👾 BOSS READY', 'The boss encounter is now on top of your deck! Draw it when ready.', '👾');
     }
 
     abandonEncounter(encounterId) {
