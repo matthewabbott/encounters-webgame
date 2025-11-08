@@ -1695,6 +1695,159 @@ footer {
     transform: scale(1.05);
 }
 
+/* Trick-taking encounter layout */
+.trick-taking-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px;
+}
+
+.trick-score {
+    display: flex;
+    justify-content: space-around;
+    padding: 15px;
+    background: var(--bg-dark);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.score-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.score-label {
+    color: var(--secondary-color);
+}
+
+.score-value {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+}
+
+.current-trick {
+    padding: 15px;
+    background: rgba(100, 255, 218, 0.1);
+    border: 2px solid #64ffda;
+    border-radius: 8px;
+    min-height: 120px;
+}
+
+.trick-label {
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #64ffda;
+    text-align: center;
+}
+
+.current-trick .card {
+    margin: 5px;
+}
+
+.current-trick .trick-card {
+    display: inline-block;
+    position: relative;
+}
+
+.current-trick .played-by-player::after {
+    content: '(You)';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: var(--primary-color);
+}
+
+.current-trick .played-by-opponent::after {
+    content: '(Opp)';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: #e74c3c;
+}
+
+.opponent-hand, .player-hand {
+    padding: 15px;
+    background: var(--bg-medium);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.opponent-hand {
+    border-color: #e74c3c;
+}
+
+.player-hand {
+    border-color: var(--primary-color);
+}
+
+.hand-label {
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+}
+
+.hand-cards {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.opponent-card {
+    opacity: 0.9;
+}
+
+/* Border indicators for AI behavior */
+.card.border-red {
+    border-color: #e74c3c;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+.card.border-blue {
+    border-color: #3498db;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+.card.border-red::before {
+    content: '⚔';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #e74c3c;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.card.border-blue::before {
+    content: '🛡';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #3498db;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
     .main-content {

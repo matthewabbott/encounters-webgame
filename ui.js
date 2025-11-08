@@ -941,8 +941,12 @@ class UI {
         // Update progress
         encounterEl.querySelector('.encounter-progress').textContent = encounter.getProgress();
 
-        // Render hand
-        this.renderHand(encounterEl, encounter);
+        // Render hand (different for trick-taking vs normal encounters)
+        if (encounter.type.category === 'trick-taking') {
+            this.renderTrickTakingHand(encounterEl, encounter);
+        } else {
+            this.renderHand(encounterEl, encounter);
+        }
 
         // Update buttons
         const completeBtn = encounterEl.querySelector('.complete-btn');
@@ -1018,6 +1022,87 @@ class UI {
                 }
             }
         });
+    }
+
+    renderTrickTakingHand(encounterEl, encounter) {
+        const cardsContainer = encounterEl.querySelector('.cards-container');
+
+        // Clear and rebuild for trick-taking layout
+        cardsContainer.innerHTML = '';
+
+        // Create trick-taking layout
+        const trickLayout = document.createElement('div');
+        trickLayout.className = 'trick-taking-layout';
+
+        // Score display
+        const scoreEl = document.createElement('div');
+        scoreEl.className = 'trick-score';
+        scoreEl.innerHTML = `
+            <div class="score-item">
+                <span class="score-label">You:</span>
+                <span class="score-value">${encounter.tricksWon}</span>
+            </div>
+            <div class="score-item">
+                <span class="score-label">Opponent:</span>
+                <span class="score-value">${encounter.opponentTricksWon}</span>
+            </div>
+        `;
+        trickLayout.appendChild(scoreEl);
+
+        // Current trick display
+        if (encounter.currentTrick.length > 0) {
+            const trickEl = document.createElement('div');
+            trickEl.className = 'current-trick';
+            trickEl.innerHTML = '<div class="trick-label">Current Trick:</div>';
+
+            encounter.currentTrick.forEach(play => {
+                const cardEl = this.createCardElement(play.card, false);
+                cardEl.classList.add('trick-card');
+                cardEl.classList.add(`played-by-${play.player}`);
+                trickEl.appendChild(cardEl);
+            });
+
+            trickLayout.appendChild(trickEl);
+        }
+
+        // Opponent hand
+        const opponentHandEl = document.createElement('div');
+        opponentHandEl.className = 'opponent-hand';
+        opponentHandEl.innerHTML = '<div class="hand-label">Opponent Hand:</div>';
+
+        const opponentCardsEl = document.createElement('div');
+        opponentCardsEl.className = 'hand-cards';
+        encounter.opponentHand.forEach(card => {
+            const cardEl = this.createCardElement(card, false);
+            cardEl.classList.add('opponent-card');
+            if (card.border) {
+                cardEl.classList.add(`border-${card.border}`);
+            }
+            opponentCardsEl.appendChild(cardEl);
+        });
+        opponentHandEl.appendChild(opponentCardsEl);
+        trickLayout.appendChild(opponentHandEl);
+
+        // Player hand
+        const playerHandEl = document.createElement('div');
+        playerHandEl.className = 'player-hand';
+        playerHandEl.innerHTML = '<div class="hand-label">Your Hand:</div>';
+
+        const playerCardsEl = document.createElement('div');
+        playerCardsEl.className = 'hand-cards';
+        encounter.hand.forEach(card => {
+            const cardEl = this.createCardElement(card, false);
+            if (!encounter.completed && !encounter.failed) {
+                cardEl.addEventListener('click', () => {
+                    this.game.playTrickCardInEncounter(encounter.id, card.id);
+                });
+            }
+            playerCardsEl.appendChild(cardEl);
+        });
+        playerHandEl.appendChild(playerCardsEl);
+        trickLayout.appendChild(playerHandEl);
+
+        cardsContainer.appendChild(trickLayout);
     }
 
     createCardElement(card, played = false) {
