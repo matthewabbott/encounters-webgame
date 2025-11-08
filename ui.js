@@ -483,6 +483,11 @@ class UI {
             this.game.resetGame();
         });
 
+        // Draw encounter card button
+        document.getElementById('draw-encounter-btn').addEventListener('click', () => {
+            this.game.drawEncounterCardToHand();
+        });
+
         // Map pan controls
         this.mapViewport.addEventListener('mousedown', (e) => this.handleMapMouseDown(e));
         this.mapViewport.addEventListener('mousemove', (e) => this.handleMapMouseMove(e));
@@ -544,6 +549,13 @@ class UI {
 
         // Update deck count
         this.encounterDeckCountEl.textContent = this.game.encounterDeck.length;
+
+        // Add empty class if hand is empty
+        if (this.game.encounterHand.length === 0) {
+            this.encounterHandEl.classList.add('empty');
+        } else {
+            this.encounterHandEl.classList.remove('empty');
+        }
 
         // Render each card in hand (minimized version)
         this.game.encounterHand.forEach((encounterType, index) => {

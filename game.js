@@ -188,8 +188,11 @@ class Game {
             this.encounterDeck.push(randomBoss);
         }
 
-        // Draw initial hand
-        this.fillEncounterHand();
+        // Don't auto-fill hand - player must draw manually
+        // Draw initial cards (start with 0, player draws)
+        if (this.ui) {
+            this.ui.updateEncounterHand();
+        }
     }
 
     shuffleEncounterDeck() {
@@ -208,6 +211,7 @@ class Game {
     }
 
     fillEncounterHand() {
+        // DEPRECATED - kept for compatibility
         // Fill hand up to hand size
         while (this.encounterHand.length < this.encounterHandSize && this.encounterDeck.length > 0) {
             const card = this.drawEncounterCard();
@@ -220,6 +224,28 @@ class Game {
         if (this.ui) {
             this.ui.updateEncounterHand();
         }
+    }
+
+    drawEncounterCardToHand() {
+        // Draw a single card from deck to hand (manual draw)
+        if (this.encounterDeck.length === 0) {
+            this.ui.showNotification('Empty Deck', 'No more encounter cards to draw!', '⚠️');
+            return false;
+        }
+
+        if (this.encounterHand.length >= this.encounterHandSize) {
+            this.ui.showNotification('Hand Full', 'Your hand is full! Place a card first.', '⚠️');
+            return false;
+        }
+
+        const card = this.drawEncounterCard();
+        if (card) {
+            this.encounterHand.push(card);
+            this.ui.updateEncounterHand();
+            return true;
+        }
+
+        return false;
     }
 
     generateNextEncounterOptions() {
@@ -322,8 +348,8 @@ class Game {
         this.encounters.set(encounterId, encounter);
         this.ui.renderEncounter(encounter);
 
-        // Refill hand
-        this.fillEncounterHand();
+        // Don't auto-refill hand - player must draw manually
+        this.ui.updateEncounterHand();
 
         this.ui.updateGameStats();
 
