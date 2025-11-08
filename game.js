@@ -438,7 +438,12 @@ class Game {
             case 'Recompile':
                 this.recompileEncounterHand(encounter);
                 break;
-            // Future: case 'Jack Out', case 'Rollback', etc.
+            case 'Jack Out':
+                this.jackOutEncounter(encounterId);
+                break;
+            case 'Rollback':
+                this.rollbackTrick(encounter);
+                break;
         }
     }
 
@@ -464,6 +469,72 @@ class Game {
 
         // Show notification
         this.ui.showNotification('🔄 Recompiled', `Tucked ${cardsToTuck.length} cards, drew ${encounter.hand.length} new cards`, '🔄');
+
+        // Update UI
+        this.ui.renderEncounter(encounter);
+    }
+
+    jackOutEncounter(encounterId) {
+        // Emergency disconnect - remove encounter from slot
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter) return;
+
+        // Return all cards to deck
+        const allCards = encounter.getAllCards();
+        allCards.forEach(card => {
+            this.deck.cards.push(card);
+        });
+
+        // Remove encounter from map
+        this.encounters.delete(encounterId);
+
+        // Free the slot if it has one
+        if (encounter.slotId !== null) {
+            const slot = this.ui.slots.find(s => s.id === encounter.slotId);
+            if (slot) {
+                slot.encounterId = null;
+                slot.status = 'unlocked'; // Return to unlocked state
+            }
+        }
+
+        // Remove from UI
+        this.ui.removeEncounter(encounterId, encounter.slotId);
+
+        // Show notification
+        this.ui.showNotification('🔌 Jacked Out', 'Emergency disconnect successful. Encounter removed from slot.', '🔌');
+
+        // Update UI
+        this.ui.updateGameStats();
+    }
+
+    rollbackTrick(encounter) {
+        // Undo the last trick (trick-taking only)
+        if (encounter.type.category !== 'trick-taking') {
+            this.ui.showNotification('Invalid Action', 'Rollback only works in trick-taking encounters!', '⚠️');
+            return;
+        }
+
+        if (encounter.completedTricks.length === 0) {
+            this.ui.showNotification('No Tricks', 'No tricks to undo!', '⚠️');
+            return;
+        }
+
+        // Get the last completed trick
+        const lastTrick = encounter.completedTricks.pop();
+
+        // Return cards to hands
+        encounter.hand.push(lastTrick.playerCard);
+        encounter.opponentHand.push(lastTrick.opponentCard);
+
+        // Revert score
+        if (lastTrick.winner === 'player') {
+            encounter.tricksWon--;
+        } else {
+            encounter.opponentTricksWon--;
+        }
+
+        // Show notification
+        this.ui.showNotification('⏮️ Rolled Back', 'Last trick undone. Cards returned to hands.', '⏮️');
 
         // Update UI
         this.ui.renderEncounter(encounter);

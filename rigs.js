@@ -26,13 +26,49 @@ const StarterRigs = {
                 icon: "🔄",
                 color: "blue",
                 description: "Tuck your hand to bottom, draw 5 new cards"
+            },
+            {
+                name: "Jack Out",
+                charges: 2,
+                chargeType: ResourceChargeType.PER_RUN,
+                icon: "🔌",
+                color: "red",
+                description: "Emergency disconnect - remove encounter from slot"
+            }
+        ]
+    },
+
+    Tactician: {
+        name: "Tactician Rig",
+        description: "Trial and error mastery",
+        difficulty: "Advanced",
+        hardware: [
+            {
+                name: "Recompile",
+                charges: 1,
+                chargeType: ResourceChargeType.PER_ENCOUNTER,
+                icon: "🔄",
+                color: "blue",
+                description: "Tuck your hand to bottom, draw 5 new cards"
+            },
+            {
+                name: "Jack Out",
+                charges: 1,
+                chargeType: ResourceChargeType.PER_RUN,
+                icon: "🔌",
+                color: "red",
+                description: "Emergency disconnect - remove encounter from slot"
+            },
+            {
+                name: "Rollback",
+                charges: 1,
+                chargeType: ResourceChargeType.PER_RUN_RECHARGE,
+                icon: "⏮️",
+                color: "purple",
+                description: "Undo the last trick played (trick-taking only)"
             }
         ]
     }
-
-    // Future rigs:
-    // Speedrunner: { ... Jack Out (per-run) ... }
-    // Tactician: { ... Recompile + Jack Out + Rollback (per-run-recharge) ... }
 };
 
 export { ResourceChargeType, StarterRigs };
