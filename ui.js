@@ -398,7 +398,12 @@ class UI {
     unlockSlotsFromSlot(slotId) {
         // Find the slot that was completed
         const completedSlot = this.slots.find(s => s.id === slotId);
-        if (!completedSlot || !completedSlot.unlockData) return;
+        if (!completedSlot || !completedSlot.unlockData) {
+            console.log('No slot or unlockData found for slot', slotId);
+            return;
+        }
+
+        console.log(`Unlocking ${completedSlot.unlockData.length} slots from slot ${slotId}:`, completedSlot.unlockData);
 
         // Create and unlock new slots based on unlock data
         // With tree layout, no collision detection needed - positions are guaranteed valid
@@ -408,9 +413,11 @@ class UI {
 
             if (!slot) {
                 // Create new slot with unlocked status
+                console.log(`Creating new slot ${unlockInfo.id} at (${unlockInfo.x}, ${unlockInfo.y})`);
                 slot = this.createSlot(unlockInfo.id, unlockInfo.x, unlockInfo.y, 'unlocked');
             } else if (slot.status === 'locked') {
                 // Unlock existing slot
+                console.log(`Unlocking existing slot ${unlockInfo.id}`);
                 slot.status = 'unlocked';
                 const portEl = document.querySelector(`[data-slot-id="${unlockInfo.id}"]`);
                 if (portEl) {
@@ -422,6 +429,8 @@ class UI {
                 }
             }
         });
+
+        console.log(`Total slots after unlock: ${this.slots.length}`);
 
         // Redraw connections to show unlocked status
         this.drawAllConnections();
