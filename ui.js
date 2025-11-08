@@ -211,6 +211,39 @@ class UI {
             this.handleSlotDragStart(e, slot.id);
         });
 
+        // Socket accepts dropped cards
+        socketEl.addEventListener('dragover', (e) => {
+            // Only allow drop if this is an unlocked empty slot
+            if (slot.status === 'unlocked' && slot.encounterId === null && this.mapState.draggedCardIndex !== null) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                portEl.classList.add('drag-over');
+            }
+        });
+
+        socketEl.addEventListener('dragleave', (e) => {
+            portEl.classList.remove('drag-over');
+        });
+
+        socketEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            portEl.classList.remove('drag-over');
+
+            // Only accept drop if valid
+            if (slot.status === 'unlocked' && slot.encounterId === null && this.mapState.draggedCardIndex !== null) {
+                const handIndex = this.mapState.draggedCardIndex;
+
+                // Validate hand index
+                if (handIndex >= 0 && handIndex < this.game.encounterHand.length) {
+                    const result = this.game.playEncounterFromHand(handIndex, slot.id);
+                    if (result) {
+                        this.clearSlotSelection();
+                        this.mapState.tutorialShown = true;
+                    }
+                }
+            }
+        });
+
         // Port handles dragging (when no encounter card selected)
         portEl.addEventListener('mousedown', (e) => {
             e.preventDefault(); // Prevent text selection and default drag behavior
@@ -517,6 +550,7 @@ class UI {
             const cardEl = document.createElement('div');
             cardEl.className = `encounter-card-mini difficulty-${encounterType.difficulty}`;
             cardEl.setAttribute('data-hand-index', index);
+            cardEl.setAttribute('draggable', 'true');
 
             const categoryData = CategoryInfo[encounterType.category];
             const categoryIcon = categoryData ? categoryData.icon : '?';
@@ -530,6 +564,15 @@ class UI {
             // Add click handler to expand/select
             cardEl.addEventListener('click', () => {
                 this.handleEncounterCardClick(index);
+            });
+
+            // Add drag handlers
+            cardEl.addEventListener('dragstart', (e) => {
+                this.handleCardDragStart(e, index, encounterType);
+            });
+
+            cardEl.addEventListener('dragend', (e) => {
+                this.handleCardDragEnd(e);
             });
 
             this.encounterHandEl.appendChild(cardEl);
@@ -646,6 +689,32 @@ class UI {
 
         this.mapState.selectedSlotId = null;
         this.mapState.selectedHandIndex = null;
+    }
+
+    handleCardDragStart(e, handIndex, encounterType) {
+        // Store which card is being dragged
+        this.mapState.draggedCardIndex = handIndex;
+
+        // Set drag data
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.innerHTML);
+
+        // Add visual feedback to dragged card
+        e.target.classList.add('dragging');
+
+        // Highlight available slots
+        this.highlightAvailableSlots(true);
+    }
+
+    handleCardDragEnd(e) {
+        // Remove visual feedback
+        e.target.classList.remove('dragging');
+
+        // Turn off slot highlighting
+        this.highlightAvailableSlots(false);
+
+        // Clear dragged card reference
+        this.mapState.draggedCardIndex = null;
     }
 
     updateUpcomingEncounters() {
