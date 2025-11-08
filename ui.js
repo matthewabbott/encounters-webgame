@@ -662,19 +662,19 @@ class UI {
 
     showModifyDeltaSelection(card) {
         // Show modal to choose +1 or -1 for Modify program
+        // Note: Yes button = Increase, No button = Decrease
         this.showConfirmation(
             'Modify Card',
-            `Modify ${card.rank}${card.suit}:`,
-            () => {
-                // Increase by 1
-                this.game.executeProgramOnCard(card.id, 1);
-            },
-            () => {
-                // Decrease by 1
-                this.game.executeProgramOnCard(card.id, -1);
-            },
-            'Increase (+1)',
-            'Decrease (-1)'
+            `Modify ${card.rank}${card.suit}? (Yes = +1, No = -1)`,
+            (confirmed) => {
+                if (confirmed) {
+                    // Increase by 1
+                    this.game.executeProgramOnCard(card.id, 1);
+                } else {
+                    // Decrease by 1
+                    this.game.executeProgramOnCard(card.id, -1);
+                }
+            }
         );
     }
 
