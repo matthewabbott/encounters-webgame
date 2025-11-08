@@ -946,6 +946,9 @@ class UI {
         // Update progress
         encounterEl.querySelector('.encounter-progress').textContent = encounter.getProgress();
 
+        // Render resources
+        this.renderEncounterResources(encounterEl, encounter);
+
         // Render hand (different for trick-taking vs normal encounters)
         if (encounter.type.category === 'trick-taking') {
             this.renderTrickTakingHand(encounterEl, encounter);
@@ -1108,6 +1111,51 @@ class UI {
         trickLayout.appendChild(playerHandEl);
 
         cardsContainer.appendChild(trickLayout);
+    }
+
+    renderEncounterResources(encounterEl, encounter) {
+        // Find or create resource buttons container
+        let resourcesEl = encounterEl.querySelector('.encounter-resources');
+        if (!resourcesEl) {
+            resourcesEl = document.createElement('div');
+            resourcesEl.className = 'encounter-resources';
+            // Insert after progress, before cards
+            const progressEl = encounterEl.querySelector('.encounter-progress');
+            if (progressEl && progressEl.parentNode) {
+                progressEl.parentNode.insertBefore(resourcesEl, progressEl.nextSibling);
+            }
+        }
+
+        // Clear existing buttons
+        resourcesEl.innerHTML = '';
+
+        // Render resource buttons from rig hardware
+        this.game.currentRig.hardware.forEach(hw => {
+            let resource;
+            if (hw.chargeType === 'per-encounter') {
+                resource = this.game.encounterResources.get(hw.name);
+            } else {
+                resource = this.game.runResources.get(hw.name);
+            }
+
+            if (!resource) return; // Resource not initialized yet
+
+            const button = document.createElement('button');
+            button.className = `btn resource-btn resource-${hw.color}`;
+            button.textContent = `${hw.icon} ${hw.name} (${resource.current}/${resource.max})`;
+            button.title = hw.description;
+            button.disabled = resource.current === 0 || encounter.completed || encounter.failed;
+
+            button.addEventListener('click', () => {
+                if (this.game.useResource(hw.name, encounter.id)) {
+                    // Resource used successfully, UI will update via render call
+                } else {
+                    this.game.ui.showNotification('No Charges', `Out of ${hw.name} charges!`, '⚠️');
+                }
+            });
+
+            resourcesEl.appendChild(button);
+        });
     }
 
     createCardElement(card, played = false) {

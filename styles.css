@@ -1700,6 +1700,72 @@ footer {
     transform: scale(1.05);
 }
 
+/* Encounter Resources */
+.encounter-resources {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.resource-btn {
+    padding: 10px 15px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.resource-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.resource-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Resource charge type colors */
+.resource-blue {
+    background: #3498db;
+    border-color: #2980b9;
+    color: white;
+}
+
+.resource-blue:hover:not(:disabled) {
+    background: #2980b9;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.6);
+}
+
+.resource-red {
+    background: #e74c3c;
+    border-color: #c0392b;
+    color: white;
+}
+
+.resource-red:hover:not(:disabled) {
+    background: #c0392b;
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.6);
+}
+
+.resource-purple {
+    background: #9b59b6;
+    border-color: #8e44ad;
+    color: white;
+}
+
+.resource-purple:hover:not(:disabled) {
+    background: #8e44ad;
+    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.6);
+}
+
 /* Trick-taking encounter layout */
 .trick-taking-layout {
     display: flex;

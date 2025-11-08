@@ -1,5 +1,6 @@
 import { EncounterTypes, Difficulty } from './encounters.js';
 import { UI } from './ui.js';
+import { ResourceChargeType, StarterRigs } from './rigs.js';
 
 /**
  * Card class representing a playing card
@@ -252,6 +253,12 @@ class Game {
         this.encounterHandSize = 3;
         this.initializeEncounterDeck();
 
+        // Hardware/Resource system
+        this.currentRig = StarterRigs.Analyst; // Start with Analyst rig
+        this.runResources = new Map(); // For per-run and per-run-recharge resources
+        this.encounterResources = new Map(); // For per-encounter resources (current encounter only)
+        this.initializeResources();
+
         // Pre-generated encounter options (for preview) - DEPRECATED, will remove
         this.nextEncounterOptions = [];
         this.generateNextEncounterOptions();
@@ -347,6 +354,119 @@ class Game {
         }
 
         return false;
+    }
+
+    // === Resource Management ===
+
+    initializeResources() {
+        // Initialize resources based on current rig
+        this.currentRig.hardware.forEach(hw => {
+            if (hw.chargeType === ResourceChargeType.PER_ENCOUNTER) {
+                // Don't track globally, will init on encounter start
+            } else {
+                // Per-run and per-run-recharge tracked globally
+                this.runResources.set(hw.name, {
+                    current: hw.charges,
+                    max: hw.charges,
+                    chargeType: hw.chargeType,
+                    hardware: hw
+                });
+            }
+        });
+    }
+
+    refreshEncounterResources(encounterId) {
+        // Called when player enters/expands an encounter
+        // Refresh per-encounter resources
+        this.encounterResources.clear();
+
+        this.currentRig.hardware.forEach(hw => {
+            if (hw.chargeType === ResourceChargeType.PER_ENCOUNTER) {
+                this.encounterResources.set(hw.name, {
+                    current: hw.charges,
+                    max: hw.charges,
+                    hardware: hw
+                });
+            }
+        });
+
+        // Recharge per-run-recharge resources
+        this.runResources.forEach((resource) => {
+            if (resource.chargeType === ResourceChargeType.PER_RUN_RECHARGE) {
+                resource.current = resource.max;
+            }
+        });
+
+        // Update UI to show resources
+        if (this.ui) {
+            this.ui.renderEncounter(this.encounters.get(encounterId));
+        }
+    }
+
+    useResource(resourceName, encounterId) {
+        // Try to use a resource
+        // Check per-encounter resources first
+        if (this.encounterResources.has(resourceName)) {
+            const resource = this.encounterResources.get(resourceName);
+            if (resource.current > 0) {
+                resource.current--;
+                this.executeResourceAbility(resourceName, encounterId);
+                return true;
+            }
+            return false; // Out of charges
+        }
+
+        // Check per-run resources
+        if (this.runResources.has(resourceName)) {
+            const resource = this.runResources.get(resourceName);
+            if (resource.current > 0) {
+                resource.current--;
+                this.executeResourceAbility(resourceName, encounterId);
+                return true;
+            }
+            return false; // Out of charges
+        }
+
+        return false; // Resource not found
+    }
+
+    executeResourceAbility(resourceName, encounterId) {
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter) return;
+
+        switch(resourceName) {
+            case 'Recompile':
+                this.recompileEncounterHand(encounter);
+                break;
+            // Future: case 'Jack Out', case 'Rollback', etc.
+        }
+    }
+
+    recompileEncounterHand(encounter) {
+        // Tuck current hand to bottom of deck, draw 5 new cards
+        const cardsToTuck = [...encounter.hand];
+
+        // Remove cards from encounter hand
+        encounter.hand = [];
+
+        // Add cards to bottom of deck
+        cardsToTuck.forEach(card => {
+            this.deck.cards.push(card);
+        });
+
+        // Draw 5 new cards
+        for (let i = 0; i < 5; i++) {
+            const card = this.deck.drawCard();
+            if (card) {
+                encounter.hand.push(card);
+            }
+        }
+
+        // Show notification
+        this.ui.showNotification('🔄 Recompiled', `Tucked ${cardsToTuck.length} cards, drew ${encounter.hand.length} new cards`, '🔄');
+
+        // Update UI
+        this.ui.renderEncounter(encounter);
     }
 
     generateNextEncounterOptions() {
@@ -757,7 +877,13 @@ class Game {
         if (!encounter) return;
 
         encounter.minimized = !encounter.minimized;
-        this.ui.renderEncounter(encounter);
+
+        // Refresh resources when expanding encounter (entering it)
+        if (!encounter.minimized) {
+            this.refreshEncounterResources(encounterId);
+        } else {
+            this.ui.renderEncounter(encounter);
+        }
     }
 
     resetGame() {
