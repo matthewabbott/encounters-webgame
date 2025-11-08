@@ -305,15 +305,18 @@ class UI {
         // Clear existing connections
         this.mapConnections.innerHTML = '';
 
-        // Draw lines for all existing slots
+        // Draw lines for all existing slots to their existing children only
         for (const slot of this.slots) {
             if (slot.unlockData && slot.unlockData.length > 0) {
                 for (const unlock of slot.unlockData) {
-                    // Check if child slot exists (has been created)
+                    // Only draw line if child slot actually exists (has been created)
                     const childSlot = this.slots.find(s => s.id === unlock.id);
-                    const isUnlocked = childSlot && childSlot.status === 'unlocked';
-
-                    this.drawConnectionLine(slot, unlock.x, unlock.y, isUnlocked);
+                    if (childSlot) {
+                        // Use actual child position (in case it was dragged)
+                        const isUnlocked = childSlot.status === 'unlocked';
+                        this.drawConnectionLine(slot, childSlot.x, childSlot.y, isUnlocked);
+                    }
+                    // Don't draw anything if child doesn't exist yet
                 }
             }
         }
@@ -890,18 +893,31 @@ class UI {
     }
 
     removeEncounter(encounterId, slotId = null) {
-        const encounterEl = document.querySelector(`[data-encounter-id="${encounterId}"]`);
-        if (encounterEl) {
-            encounterEl.remove();
+        // Remove floating encounter window
+        const floatingEl = document.querySelector(`[data-encounter-id="${encounterId}"].encounter-floating`);
+        if (floatingEl) {
+            floatingEl.remove();
         }
 
-        // Free the slot
+        // Remove minimized encounter from socket
         if (slotId !== null) {
+            const portEl = document.querySelector(`[data-slot-id="${slotId}"]`);
+            if (portEl) {
+                const miniEl = portEl.querySelector('.encounter-mini');
+                if (miniEl) {
+                    miniEl.remove();
+                }
+            }
+
+            // Free the slot
             const slot = this.slots.find(s => s.id === slotId);
             if (slot) {
                 slot.encounterId = null;
             }
         }
+
+        // Redraw tethers (since this encounter's tether is now gone)
+        this.drawAllTethers();
 
         this.updateGameStats();
     }
@@ -1289,40 +1305,15 @@ class UI {
         this.encountersContainer.innerHTML = '';
         this.encounterTethers.innerHTML = '';
 
-        // Re-lock all slots except the starting slot (id 0)
-        for (const slot of this.slots) {
-            slot.encounterId = null; // Clear encounter assignments
+        // Remove all ports/slots and start fresh
+        this.mapSlots.innerHTML = '';
+        this.slots = [];
 
-            if (slot.id === 0) {
-                // Keep starting slot unlocked
-                slot.status = 'unlocked';
-            } else {
-                // Lock all other slots
-                slot.status = 'locked';
+        // Clear spatial grid
+        this.spatialGrid.clear();
 
-                // Update DOM to show locked state
-                const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
-                if (portEl) {
-                    const slotEl = portEl.querySelector('.map-slot');
-                    if (slotEl) {
-                        slotEl.classList.remove('unlocked');
-                        slotEl.classList.add('locked');
-                    }
-                }
-            }
-
-            // Clear any minimized encounters from sockets
-            const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
-            if (portEl) {
-                const miniEl = portEl.querySelector('.encounter-mini');
-                if (miniEl) {
-                    miniEl.remove();
-                }
-            }
-        }
-
-        // Redraw connections (will show all as locked except from slot 0)
-        this.drawAllConnections();
+        // Reinitialize map with fresh starting slot
+        this.initializeMapSlots();
 
         // Reset tutorial flag
         this.mapState.tutorialShown = false;
