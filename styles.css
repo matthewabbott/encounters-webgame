@@ -681,6 +681,11 @@ header h1 {
     transition: width 0.2s ease, height 0.2s ease;
 }
 
+/* Wider windows for trick-taking encounters to show cards in a line */
+.encounter-on-map.trick-taking-encounter {
+    width: 500px;
+}
+
 .encounter-on-map.minimized {
     width: 120px;
     height: 120px;

@@ -606,16 +606,21 @@ const EncounterTypes = {
 
         // Initialize opponent hand when encounter is created
         initOpponentHand() {
-            // Create opponent hand with 5 cards with varying borders
-            // For easy mode: mix of neutral and a few colored borders
-            const opponentCards = [
-                { rank: '3', suit: '♠', border: 'red' },    // Aggressive - always tries to win
-                { rank: '2', suit: '♥', border: null },     // Neutral - plays leftmost
-                { rank: 'A', suit: '♣', border: 'blue' },   // Passive - avoids winning
-                { rank: '3', suit: '♦', border: null },     // Neutral
-                { rank: '2', suit: '♠', border: null }      // Neutral
-            ];
-            return opponentCards;
+            // Create opponent hand with 5 cards with randomized borders
+            // For easy mode: mostly blue (passive) and neutral, few red (aggressive)
+            // Blue makes it easier (opponent avoids winning), red makes it harder
+            const ranks = ['A', '2', '3', 'A', '2']; // Use available ranks
+            const suits = ['♠', '♥', '♣', '♦', '♠'];
+
+            // Easy: 40% blue (helpful), 10% red (challenging), 50% neutral
+            const borderPool = ['blue', 'blue', 'red', null, null];
+            const shuffledBorders = borderPool.sort(() => Math.random() - 0.5);
+
+            return ranks.map((rank, i) => ({
+                rank: rank,
+                suit: suits[i],
+                border: shuffledBorders[i]
+            }));
         },
 
         checkWin(encounter) {
@@ -625,6 +630,100 @@ const EncounterTypes = {
 
         checkFail(encounter) {
             // Fail if all 5 tricks are played and player didn't win enough
+            const tricksPlayed = (encounter.tricksWon || 0) + (encounter.opponentTricksWon || 0);
+            if (tricksPlayed >= 5) {
+                return (encounter.tricksWon || 0) < this.tricksNeeded;
+            }
+            return false;
+        },
+
+        getProgress(encounter) {
+            const playerTricks = encounter.tricksWon || 0;
+            const opponentTricks = encounter.opponentTricksWon || 0;
+            const tricksPlayed = playerTricks + opponentTricks;
+            return `Tricks: You ${playerTricks} - ${opponentTricks} Opponent (${tricksPlayed}/5 played, need ${this.tricksNeeded} to win)`;
+        }
+    },
+
+    /**
+     * Trick-Taking (Medium): Win 3 out of 5 tricks against opponent
+     */
+    TrickTakingMedium: {
+        name: "Trick Duel",
+        description: "Win at least 3 tricks to claim victory",
+        difficulty: Difficulty.MEDIUM,
+        category: EncounterCategory.TRICK_TAKING,
+        initialHandSize: 5,
+        tricksNeeded: 3,
+
+        initOpponentHand() {
+            // Medium: balanced mix of all border types
+            const ranks = ['A', '2', '3', 'A', '2'];
+            const suits = ['♠', '♥', '♣', '♦', '♠'];
+
+            // Medium: 20% blue, 40% red, 40% neutral (more challenging)
+            const borderPool = ['blue', 'red', 'red', null, null];
+            const shuffledBorders = borderPool.sort(() => Math.random() - 0.5);
+
+            return ranks.map((rank, i) => ({
+                rank: rank,
+                suit: suits[i],
+                border: shuffledBorders[i]
+            }));
+        },
+
+        checkWin(encounter) {
+            return (encounter.tricksWon || 0) >= this.tricksNeeded;
+        },
+
+        checkFail(encounter) {
+            const tricksPlayed = (encounter.tricksWon || 0) + (encounter.opponentTricksWon || 0);
+            if (tricksPlayed >= 5) {
+                return (encounter.tricksWon || 0) < this.tricksNeeded;
+            }
+            return false;
+        },
+
+        getProgress(encounter) {
+            const playerTricks = encounter.tricksWon || 0;
+            const opponentTricks = encounter.opponentTricksWon || 0;
+            const tricksPlayed = playerTricks + opponentTricks;
+            return `Tricks: You ${playerTricks} - ${opponentTricks} Opponent (${tricksPlayed}/5 played, need ${this.tricksNeeded} to win)`;
+        }
+    },
+
+    /**
+     * Trick-Taking (Hard): Win 4 out of 5 tricks against aggressive opponent
+     */
+    TrickTakingHard: {
+        name: "Trick Gauntlet",
+        description: "Win at least 4 tricks against an aggressive opponent",
+        difficulty: Difficulty.HARD,
+        category: EncounterCategory.TRICK_TAKING,
+        initialHandSize: 5,
+        tricksNeeded: 4,
+
+        initOpponentHand() {
+            // Hard: mostly red (aggressive) borders
+            const ranks = ['A', '2', '3', 'A', '2'];
+            const suits = ['♠', '♥', '♣', '♦', '♠'];
+
+            // Hard: 60% red (very challenging), 10% blue, 30% neutral
+            const borderPool = ['red', 'red', 'red', 'blue', null];
+            const shuffledBorders = borderPool.sort(() => Math.random() - 0.5);
+
+            return ranks.map((rank, i) => ({
+                rank: rank,
+                suit: suits[i],
+                border: shuffledBorders[i]
+            }));
+        },
+
+        checkWin(encounter) {
+            return (encounter.tricksWon || 0) >= this.tricksNeeded;
+        },
+
+        checkFail(encounter) {
             const tricksPlayed = (encounter.tricksWon || 0) + (encounter.opponentTricksWon || 0);
             if (tricksPlayed >= 5) {
                 return (encounter.tricksWon || 0) < this.tricksNeeded;

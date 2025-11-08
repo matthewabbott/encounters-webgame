@@ -863,6 +863,11 @@ class UI {
             encounterEl.classList.add('encounter-on-map');
             encounterEl.classList.add('encounter-floating');
 
+            // Add wider class for trick-taking encounters
+            if (encounter.type.category === 'trick-taking') {
+                encounterEl.classList.add('trick-taking-encounter');
+            }
+
             // Position at slot coordinates (will be offset above the slot)
             encounterEl.style.left = `${slot.x}px`;
             encounterEl.style.top = `${slot.y - 200}px`; // Offset above the port
