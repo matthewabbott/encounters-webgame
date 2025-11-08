@@ -48,6 +48,9 @@ class UI {
             nextZIndex: 100, // For managing encounter stacking order
             selectedSlotId: null, // For encounter placement
             tutorialShown: false, // Track if tutorial popup has been shown
+            // Encounter hand
+            selectedHandIndex: null, // Which card is selected
+            expandedCardIndex: null, // Which card is currently expanded
             // Slot dragging
             isDraggingSlot: false,
             draggedSlotId: null,
@@ -509,25 +512,22 @@ class UI {
         // Update deck count
         this.encounterDeckCountEl.textContent = this.game.encounterDeck.length;
 
-        // Render each card in hand
+        // Render each card in hand (minimized version)
         this.game.encounterHand.forEach((encounterType, index) => {
             const cardEl = document.createElement('div');
-            cardEl.className = `encounter-card difficulty-${encounterType.difficulty}`;
+            cardEl.className = `encounter-card-mini difficulty-${encounterType.difficulty}`;
             cardEl.setAttribute('data-hand-index', index);
 
             const categoryData = CategoryInfo[encounterType.category];
             const categoryIcon = categoryData ? categoryData.icon : '?';
 
+            // Minimized version shows just icon and difficulty
             cardEl.innerHTML = `
-                <div class="encounter-card-header">
-                    <div class="encounter-card-category" style="color: ${this.getCategoryColor(encounterType.category)}">${categoryIcon}</div>
-                    <div class="encounter-card-difficulty">${encounterType.difficulty}</div>
-                </div>
-                <div class="encounter-card-name">${encounterType.name}</div>
-                <div class="encounter-card-description">${encounterType.description}</div>
+                <div class="mini-card-icon">${categoryIcon}</div>
+                <div class="mini-card-difficulty">${encounterType.difficulty}</div>
             `;
 
-            // Add click handler
+            // Add click handler to expand/select
             cardEl.addEventListener('click', () => {
                 this.handleEncounterCardClick(index);
             });
@@ -550,44 +550,102 @@ class UI {
     }
 
     handleEncounterCardClick(handIndex) {
-        // If a slot is selected, play the encounter there
-        if (this.mapState.selectedSlotId !== null) {
-            const result = this.game.playEncounterFromHand(handIndex, this.mapState.selectedSlotId);
-            if (result) {
-                // Clear selection
-                this.clearSlotSelection();
-                this.mapState.tutorialShown = true;
-            }
-        } else {
-            // No slot selected - prompt user to select a slot (only first time)
-            if (!this.mapState.tutorialShown) {
-                this.game.ui.showNotification('Select a Slot', 'Click an unlocked slot on the map to place this encounter.', '💡');
-            }
+        const encounterType = this.game.encounterHand[handIndex];
+        if (!encounterType) return;
 
-            // Highlight the selected card
-            const cards = this.encounterHandEl.querySelectorAll('.encounter-card');
-            cards.forEach((card, i) => {
-                if (i === handIndex) {
-                    card.classList.add('selected-for-slot');
-                } else {
-                    card.classList.remove('selected-for-slot');
+        // Toggle expansion if clicking same card
+        if (this.mapState.expandedCardIndex === handIndex) {
+            this.collapseExpandedCard();
+            return;
+        }
+
+        // Expand this card
+        this.expandEncounterCard(handIndex, encounterType);
+    }
+
+    expandEncounterCard(handIndex, encounterType) {
+        // Collapse any existing expanded card
+        this.collapseExpandedCard();
+
+        // Store which card is expanded
+        this.mapState.expandedCardIndex = handIndex;
+        this.mapState.selectedHandIndex = handIndex;
+
+        // Get the mini card element
+        const cardEl = this.encounterHandEl.querySelector(`[data-hand-index="${handIndex}"]`);
+        if (!cardEl) return;
+
+        // Add selected class
+        cardEl.classList.add('expanded');
+
+        // Create expanded details popup above the card
+        const expandedEl = document.createElement('div');
+        expandedEl.className = 'encounter-card-expanded';
+        expandedEl.innerHTML = `
+            <div class="encounter-card-header">
+                <div class="encounter-card-category" style="color: ${this.getCategoryColor(encounterType.category)}">${CategoryInfo[encounterType.category]?.icon || '?'}</div>
+                <div class="encounter-card-difficulty">${encounterType.difficulty}</div>
+            </div>
+            <div class="encounter-card-name">${encounterType.name}</div>
+            <div class="encounter-card-description">${encounterType.description}</div>
+            <div class="encounter-card-hint">Click an unlocked slot to place</div>
+        `;
+
+        // Position above the mini card
+        cardEl.appendChild(expandedEl);
+
+        // Light up available slots
+        this.highlightAvailableSlots(true);
+
+        // Show tutorial hint only first time
+        if (!this.mapState.tutorialShown) {
+            this.game.ui.showNotification('Place Encounter', 'Click an unlocked slot on the map to place this encounter.', '💡');
+        }
+    }
+
+    collapseExpandedCard() {
+        if (this.mapState.expandedCardIndex === null) return;
+
+        // Remove expanded class from card
+        const cardEl = this.encounterHandEl.querySelector(`[data-hand-index="${this.mapState.expandedCardIndex}"]`);
+        if (cardEl) {
+            cardEl.classList.remove('expanded');
+            // Remove expanded details popup
+            const expandedEl = cardEl.querySelector('.encounter-card-expanded');
+            if (expandedEl) {
+                expandedEl.remove();
+            }
+        }
+
+        // Turn off slot highlighting
+        this.highlightAvailableSlots(false);
+
+        this.mapState.expandedCardIndex = null;
+        this.mapState.selectedHandIndex = null;
+    }
+
+    highlightAvailableSlots(highlight) {
+        // Find all unlocked empty slots
+        for (const slot of this.slots) {
+            if (slot.status === 'unlocked' && slot.encounterId === null) {
+                const portEl = document.querySelector(`[data-slot-id="${slot.id}"]`);
+                if (portEl) {
+                    if (highlight) {
+                        portEl.classList.add('slot-available');
+                    } else {
+                        portEl.classList.remove('slot-available');
+                    }
                 }
-            });
-
-            // Store which card was selected (for future: could show this in UI)
-            this.mapState.selectedHandIndex = handIndex;
+            }
         }
     }
 
     clearSlotSelection() {
+        // Collapse expanded card
+        this.collapseExpandedCard();
+
         this.mapState.selectedSlotId = null;
         this.mapState.selectedHandIndex = null;
-
-        // Remove selection highlighting from cards
-        const cards = this.encounterHandEl.querySelectorAll('.encounter-card');
-        cards.forEach(card => card.classList.remove('selected-for-slot'));
-
-        // Remove selection highlighting from slots (add this later)
     }
 
     updateUpcomingEncounters() {
