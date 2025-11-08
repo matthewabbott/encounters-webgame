@@ -25,7 +25,8 @@ const EncounterCategory = {
     DUEL: 'duel',         // Opponent-based
     MULTI_STAGE: 'multi-stage', // Evolving objectives
     SIMPLE: 'simple',     // Basic single-objective challenges
-    HYBRID: 'hybrid'      // Combination of multiple mechanics
+    HYBRID: 'hybrid',     // Combination of multiple mechanics
+    TRICK_TAKING: 'trick-taking' // Trick-taking card game
 };
 
 // Category metadata for UI display
@@ -64,6 +65,11 @@ const CategoryInfo = {
         name: 'Hybrid',
         icon: '⊕',
         description: 'Combined mechanics'
+    },
+    [EncounterCategory.TRICK_TAKING]: {
+        name: 'Trick-Taking',
+        icon: '🎴',
+        description: 'Win tricks against opponent'
     }
 };
 
@@ -584,6 +590,53 @@ const EncounterTypes = {
             const spent = encounter.playedCards.reduce((sum, card) => sum + card.value, 0);
             const remaining = this.budget - spent;
             return `Budget: ${spent}/${this.budget} spent | ${remaining} remaining`;
+        }
+    },
+
+    /**
+     * Trick-Taking (Easy): Win 2 out of 5 tricks against opponent
+     */
+    TrickTakingEasy: {
+        name: "Trick Battle",
+        description: "Win at least 2 tricks (high card wins each trick)",
+        difficulty: Difficulty.EASY,
+        category: EncounterCategory.TRICK_TAKING,
+        initialHandSize: 5,
+        tricksNeeded: 2,
+
+        // Initialize opponent hand when encounter is created
+        initOpponentHand() {
+            // Create opponent hand with 5 cards with varying borders
+            // For easy mode: mix of neutral and a few colored borders
+            const opponentCards = [
+                { rank: '3', suit: '♠', border: 'red' },    // Aggressive - always tries to win
+                { rank: '2', suit: '♥', border: null },     // Neutral - plays leftmost
+                { rank: 'A', suit: '♣', border: 'blue' },   // Passive - avoids winning
+                { rank: '3', suit: '♦', border: null },     // Neutral
+                { rank: '2', suit: '♠', border: null }      // Neutral
+            ];
+            return opponentCards;
+        },
+
+        checkWin(encounter) {
+            // Win if player has won at least tricksNeeded tricks
+            return (encounter.tricksWon || 0) >= this.tricksNeeded;
+        },
+
+        checkFail(encounter) {
+            // Fail if all 5 tricks are played and player didn't win enough
+            const tricksPlayed = (encounter.tricksWon || 0) + (encounter.opponentTricksWon || 0);
+            if (tricksPlayed >= 5) {
+                return (encounter.tricksWon || 0) < this.tricksNeeded;
+            }
+            return false;
+        },
+
+        getProgress(encounter) {
+            const playerTricks = encounter.tricksWon || 0;
+            const opponentTricks = encounter.opponentTricksWon || 0;
+            const tricksPlayed = playerTricks + opponentTricks;
+            return `Tricks: You ${playerTricks} - ${opponentTricks} Opponent (${tricksPlayed}/5 played, need ${this.tricksNeeded} to win)`;
         }
     }
 };

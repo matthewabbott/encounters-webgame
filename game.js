@@ -5,9 +5,10 @@ import { UI } from './ui.js';
  * Card class representing a playing card
  */
 class Card {
-    constructor(rank, suit) {
+    constructor(rank, suit, border = null) {
         this.rank = rank;
         this.suit = suit;
+        this.border = border; // null (neutral), 'red' (aggressive), 'blue' (passive)
         this.id = `${rank}-${suit}-${Date.now()}-${Math.random()}`;
     }
 
@@ -96,6 +97,19 @@ class Encounter {
         this.rewardsCollected = false;
         this.minimized = true; // Start minimized, player can expand to interact
         this.slotId = slotId; // Which map slot this encounter is in
+
+        // Trick-taking specific properties
+        this.opponentHand = []; // Opponent's cards (for trick-taking)
+        this.currentTrick = []; // Cards played in current trick [{ player: 'player'|'opponent', card }]
+        this.tricksWon = 0; // Tracks won by player
+        this.opponentTricksWon = 0; // Tricks won by opponent
+        this.completedTricks = []; // History of completed tricks
+
+        // Initialize opponent hand if this is a trick-taking encounter
+        if (type.initOpponentHand) {
+            const opponentCardData = type.initOpponentHand();
+            this.opponentHand = opponentCardData.map(data => new Card(data.rank, data.suit, data.border));
+        }
     }
 
     addCardToHand(card) {
@@ -125,6 +139,93 @@ class Encounter {
 
     getProgress() {
         return this.type.getProgress(this);
+    }
+
+    // Trick-taking methods
+    playTrickCard(cardId) {
+        // Player plays a card for the current trick
+        const cardIndex = this.hand.findIndex(c => c.id === cardId);
+        if (cardIndex === -1) return null;
+
+        const card = this.hand.splice(cardIndex, 1)[0];
+        this.currentTrick.push({ player: 'player', card });
+
+        // After player plays, opponent plays (if opponent has cards)
+        if (this.opponentHand.length > 0) {
+            this.opponentPlayCard();
+        }
+
+        // Resolve trick if both players have played
+        if (this.currentTrick.length === 2) {
+            this.resolveTrick();
+        }
+
+        return card;
+    }
+
+    opponentPlayCard() {
+        // AI chooses which card to play based on border behavior
+        const playerCard = this.currentTrick.find(t => t.player === 'player')?.card;
+        let chosenCardIndex = -1;
+
+        // Find cards that would win the trick
+        const winningIndices = this.opponentHand
+            .map((card, index) => ({ card, index }))
+            .filter(({ card }) => playerCard && card.value > playerCard.value)
+            .map(({ index }) => index);
+
+        // Check for red border cards (aggressive - always try to win)
+        const redBorderWinningIndex = this.opponentHand.findIndex((card, index) =>
+            card.border === 'red' && winningIndices.includes(index)
+        );
+
+        if (redBorderWinningIndex !== -1) {
+            // Play red border card that wins
+            chosenCardIndex = redBorderWinningIndex;
+        } else {
+            // Check for blue border cards (passive - avoid winning)
+            const nonWinningBlueIndex = this.opponentHand.findIndex((card, index) =>
+                card.border === 'blue' && !winningIndices.includes(index)
+            );
+
+            if (nonWinningBlueIndex !== -1) {
+                // Play blue card that doesn't win
+                chosenCardIndex = nonWinningBlueIndex;
+            } else {
+                // Default: play leftmost card
+                chosenCardIndex = 0;
+            }
+        }
+
+        const card = this.opponentHand.splice(chosenCardIndex, 1)[0];
+        this.currentTrick.push({ player: 'opponent', card });
+        return card;
+    }
+
+    resolveTrick() {
+        // Determine who won the trick (high card wins)
+        const playerPlay = this.currentTrick.find(t => t.player === 'player');
+        const opponentPlay = this.currentTrick.find(t => t.player === 'opponent');
+
+        if (!playerPlay || !opponentPlay) return;
+
+        const winner = playerPlay.card.value > opponentPlay.card.value ? 'player' : 'opponent';
+
+        if (winner === 'player') {
+            this.tricksWon++;
+        } else {
+            this.opponentTricksWon++;
+        }
+
+        // Store completed trick
+        this.completedTricks.push({
+            playerCard: playerPlay.card,
+            opponentCard: opponentPlay.card,
+            winner
+        });
+
+        // Clear current trick
+        this.currentTrick = [];
     }
 }
 
@@ -413,6 +514,22 @@ class Game {
         }
 
         const card = encounter.playCard(cardId);
+        if (card) {
+            this.ui.renderEncounter(encounter);
+            this.checkEncounterStatus(encounterId);
+            return true;
+        }
+
+        return false;
+    }
+
+    playTrickCardInEncounter(encounterId, cardId) {
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter || encounter.completed || encounter.failed) {
+            return false;
+        }
+
+        const card = encounter.playTrickCard(cardId);
         if (card) {
             this.ui.renderEncounter(encounter);
             this.checkEncounterStatus(encounterId);
