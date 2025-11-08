@@ -954,17 +954,17 @@ Resources available in this encounter:
 
 ### Implementation Phases
 
-**Phase 2a (Current):**
+**Phase 2a:**
 - ✅ Rig system architecture
-- ✅ Per-encounter Recompile only
+- ✅ Per-encounter Recompile
 - ✅ Simple UI (buttons in encounter)
 - ✅ Charge tracking
 
-**Phase 2b:**
-- [ ] Per-run Jack Out
-- [ ] Per-run-recharge Rollback
-- [ ] Multiple starter rigs
-- [ ] Rig selection screen
+**Phase 2b (Current):**
+- ✅ Per-run Jack Out
+- ✅ Per-run-recharge Rollback
+- ✅ Multiple starter rigs (Analyst, Tactician)
+- [ ] Rig selection screen at game start
 
 **Phase 2c:**
 - [ ] Visual polish (animations, color coding)
