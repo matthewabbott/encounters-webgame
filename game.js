@@ -1,6 +1,7 @@
 import { EncounterTypes, Difficulty } from './encounters.js';
 import { UI } from './ui.js';
 import { ResourceChargeType, StarterRigs } from './rigs.js';
+import { ProgramMode, BasePrograms, getRandomProgram } from './programs.js';
 
 /**
  * Card class representing a playing card
@@ -20,6 +21,13 @@ class Card {
             'J': 11, 'Q': 12, 'K': 13
         };
         return rankValues[this.rank];
+    }
+
+    set value(newValue) {
+        // Allow programs to modify card values
+        const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const clampedValue = Math.max(1, Math.min(13, newValue));
+        this.rank = ranks[clampedValue - 1];
     }
 
     get color() {
@@ -81,6 +89,16 @@ class Deck {
 
     getContents() {
         return this.cards.map(c => c.toString());
+    }
+
+    createCard(rank, suit, border = null) {
+        // Helper method for programs to create new cards
+        return new Card(rank, suit, border);
+    }
+
+    drawCard() {
+        // Draw a single card
+        return this.cards.pop();
     }
 }
 
@@ -258,6 +276,11 @@ class Game {
         this.runResources = new Map(); // For per-run and per-run-recharge resources
         this.encounterResources = new Map(); // For per-encounter resources (current encounter only)
         this.initializeResources();
+
+        // Program system (consumables)
+        this.programs = []; // Program inventory (max 5)
+        this.maxPrograms = 5;
+        this.programInUse = null; // Currently selected program awaiting card selection
 
         // Pre-generated encounter options (for preview) - DEPRECATED, will remove
         this.nextEncounterOptions = [];
@@ -538,6 +561,94 @@ class Game {
 
         // Update UI
         this.ui.renderEncounter(encounter);
+    }
+
+    // ===== Program System Methods =====
+
+    addProgram(program) {
+        // Add a program to inventory (max 5)
+        if (this.programs.length >= this.maxPrograms) {
+            this.ui.showNotification('Inventory Full', `Cannot carry more than ${this.maxPrograms} programs!`, '⚠️');
+            return false;
+        }
+
+        // Create a unique instance of the program
+        const programInstance = {
+            ...program,
+            instanceId: `${program.name}-${Date.now()}-${Math.random()}`
+        };
+
+        this.programs.push(programInstance);
+        this.ui.showNotification('Program Acquired', `${program.icon} ${program.displayName} added to inventory`, program.icon);
+        this.ui.updateProgramInventory();
+        return true;
+    }
+
+    useProgram(programInstanceId) {
+        // Select a program for use
+        const programIndex = this.programs.findIndex(p => p.instanceId === programInstanceId);
+        if (programIndex === -1) return false;
+
+        const program = this.programs[programIndex];
+
+        // Check if program requires card selection
+        if (program.mode === ProgramMode.CARD_SELECT) {
+            // Enter card selection mode
+            this.programInUse = { program, programIndex };
+            this.ui.showNotification('Select Card', `${program.icon} ${program.displayName}: Click a card from your deck`, program.icon);
+            this.ui.enterCardSelectionMode();
+            return true;
+        }
+
+        // Immediate execution programs
+        if (program.mode === ProgramMode.IMMEDIATE) {
+            const result = program.execute(this);
+            if (result.success) {
+                this.programs.splice(programIndex, 1); // Remove used program
+                this.ui.showNotification(program.displayName, result.message, result.icon);
+                this.ui.updateProgramInventory();
+            } else {
+                this.ui.showNotification('Failed', result.message, '⚠️');
+            }
+            return result.success;
+        }
+
+        return false;
+    }
+
+    executeProgramOnCard(cardId, delta = null) {
+        // Execute the selected program on a chosen card
+        if (!this.programInUse) return false;
+
+        const { program, programIndex } = this.programInUse;
+
+        // Execute the program
+        const result = program.execute(this, cardId, delta);
+
+        if (result.success) {
+            // Remove the program from inventory
+            this.programs.splice(programIndex, 1);
+            this.ui.showNotification(program.displayName, result.message, result.icon);
+            this.ui.updateProgramInventory();
+            this.ui.updateGameStats(); // Refresh deck display
+        } else {
+            this.ui.showNotification('Failed', result.message, '⚠️');
+        }
+
+        // Clear selection mode
+        this.programInUse = null;
+        this.ui.exitCardSelectionMode();
+
+        return result.success;
+    }
+
+    cancelProgramSelection() {
+        // Cancel program selection mode
+        if (this.programInUse) {
+            this.ui.showNotification('Cancelled', 'Program selection cancelled', 'ℹ️');
+            this.programInUse = null;
+            this.ui.exitCardSelectionMode();
+        }
     }
 
     generateNextEncounterOptions() {
@@ -853,6 +964,23 @@ class Game {
         // Add reward cards to deck
         selectedRewardCards.forEach(card => this.deck.cards.push(card));
         this.deck.shuffle();
+
+        // Add program reward (50% chance for medium+, guaranteed for boss)
+        const difficulty = encounter.type.difficulty;
+        let shouldGiveProgram = false;
+
+        if (difficulty === Difficulty.BOSS) {
+            shouldGiveProgram = true;
+        } else if (difficulty === Difficulty.HARD) {
+            shouldGiveProgram = Math.random() < 0.7; // 70% chance
+        } else if (difficulty === Difficulty.MEDIUM) {
+            shouldGiveProgram = Math.random() < 0.5; // 50% chance
+        }
+
+        if (shouldGiveProgram) {
+            const program = getRandomProgram();
+            this.addProgram(program);
+        }
 
         // Track progress
         this.encountersCleared++;

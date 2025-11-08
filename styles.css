@@ -150,6 +150,69 @@ header h1 {
     gap: 10px;
 }
 
+.programs-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.programs-section h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.program-count {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    font-weight: normal;
+}
+
+.program-inventory {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+
+.program-empty-state {
+    text-align: center;
+    color: var(--secondary-color);
+    font-size: 0.85rem;
+    padding: 20px;
+}
+
+.program-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-medium);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.program-item:hover {
+    background: var(--bg-light);
+    border-color: var(--primary-color);
+    transform: translateX(5px);
+}
+
+.program-icon {
+    font-size: 1.5rem;
+}
+
+.program-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
 .progress-section {
     display: flex;
     flex-direction: column;
@@ -1932,4 +1995,52 @@ footer {
     .encounter-options {
         grid-template-columns: 1fr;
     }
+}
+
+/* Program Card Selection Mode */
+#deck-display.selection-mode {
+    background: var(--bg-medium);
+    border: 3px solid var(--primary-color);
+    padding: 15px;
+    cursor: default;
+    animation: pulse-selection 2s infinite;
+}
+
+@keyframes pulse-selection {
+    0%, 100% {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+    }
+    50% {
+        border-color: #60a5fa;
+        box-shadow: 0 0 20px rgba(37, 99, 235, 0.6);
+    }
+}
+
+.selection-instruction {
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+.deck-card-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.deck-card-selection .card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.deck-card-selection .card.selectable:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.4);
+    border-color: var(--primary-color);
 }

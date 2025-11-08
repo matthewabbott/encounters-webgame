@@ -35,6 +35,10 @@ class UI {
         this.encounterHandEl = document.getElementById('encounter-hand');
         this.encounterDeckCountEl = document.getElementById('encounter-deck-count');
 
+        // Program inventory elements
+        this.programInventoryEl = document.getElementById('program-inventory');
+        this.programCountEl = document.getElementById('program-count');
+
         // Map state
         this.mapState = {
             panX: 100,
@@ -59,7 +63,9 @@ class UI {
             slotOriginalX: 0,
             slotOriginalY: 0,
             // Performance
-            redrawScheduled: false
+            redrawScheduled: false,
+            // Program card selection
+            cardSelectionMode: false
         };
 
         // Apply initial transform
@@ -541,6 +547,135 @@ class UI {
             this.emptyState.style.display = 'none';
             this.encountersContainer.style.display = 'grid';
         }
+
+        // Update program inventory display
+        this.updateProgramInventory();
+    }
+
+    updateProgramInventory() {
+        // Update program count display
+        this.programCountEl.textContent = `(${this.game.programs.length}/${this.game.maxPrograms})`;
+
+        // Clear current inventory
+        this.programInventoryEl.innerHTML = '';
+
+        if (this.game.programs.length === 0) {
+            // Show empty state
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'program-empty-state';
+            emptyEl.textContent = 'No programs yet';
+            this.programInventoryEl.appendChild(emptyEl);
+            return;
+        }
+
+        // Render each program
+        this.game.programs.forEach(program => {
+            const programEl = document.createElement('button');
+            programEl.className = 'program-item btn';
+            programEl.title = program.description;
+            programEl.innerHTML = `
+                <span class="program-icon">${program.icon}</span>
+                <span class="program-name">${program.displayName}</span>
+            `;
+
+            programEl.addEventListener('click', () => {
+                this.game.useProgram(program.instanceId);
+            });
+
+            this.programInventoryEl.appendChild(programEl);
+        });
+    }
+
+    enterCardSelectionMode() {
+        // Enter card selection mode for program use
+        this.mapState.cardSelectionMode = true;
+
+        // Show modal explaining card selection
+        const deckDisplay = document.getElementById('deck-display');
+        if (deckDisplay) {
+            deckDisplay.classList.add('selection-mode');
+
+            // Make deck display clickable and show deck contents as selectable cards
+            this.renderDeckCardSelection();
+        }
+    }
+
+    exitCardSelectionMode() {
+        // Exit card selection mode
+        this.mapState.cardSelectionMode = false;
+
+        // Remove selection mode styling
+        const deckDisplay = document.getElementById('deck-display');
+        if (deckDisplay) {
+            deckDisplay.classList.remove('selection-mode');
+
+            // Restore normal deck display
+            deckDisplay.innerHTML = '<div class="card-back">?</div>';
+        }
+    }
+
+    renderDeckCardSelection() {
+        // Render deck contents as selectable cards
+        const deckDisplay = document.getElementById('deck-display');
+        if (!deckDisplay) return;
+
+        deckDisplay.innerHTML = '';
+
+        // Add cancel button
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-small btn-secondary';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.marginBottom = '10px';
+        cancelBtn.addEventListener('click', () => {
+            this.game.cancelProgramSelection();
+        });
+        deckDisplay.appendChild(cancelBtn);
+
+        // Add instruction text
+        const instructionEl = document.createElement('div');
+        instructionEl.className = 'selection-instruction';
+        instructionEl.textContent = 'Select a card:';
+        deckDisplay.appendChild(instructionEl);
+
+        // Render deck cards as selectable
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'deck-card-selection';
+
+        this.game.deck.cards.forEach(card => {
+            const cardEl = this.createCardElement(card, false);
+            cardEl.classList.add('selectable');
+
+            cardEl.addEventListener('click', () => {
+                // Check if this is a Modify program that needs delta selection
+                if (this.game.programInUse?.program.name === 'modify.py') {
+                    this.showModifyDeltaSelection(card);
+                } else {
+                    this.game.executeProgramOnCard(card.id);
+                }
+            });
+
+            cardContainer.appendChild(cardEl);
+        });
+
+        deckDisplay.appendChild(cardContainer);
+    }
+
+    showModifyDeltaSelection(card) {
+        // Show modal to choose +1 or -1 for Modify program
+        this.showConfirmation(
+            'Modify Card',
+            `Modify ${card.rank}${card.suit}:`,
+            () => {
+                // Increase by 1
+                this.game.executeProgramOnCard(card.id, 1);
+            },
+            () => {
+                // Decrease by 1
+                this.game.executeProgramOnCard(card.id, -1);
+            },
+            'Increase (+1)',
+            'Decrease (-1)'
+        );
     }
 
     showBossOnDeck(show) {
