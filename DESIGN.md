@@ -701,6 +701,313 @@ Powers work BOTH in encounters AND on world map:
 - "Should I destroy this barrier or save my `breach.exe` for later?"
 - "I need card X from this shop, but do I want to sacrifice card Y for it?"
 
+## Hardware & Resource System (Rigs/ICE/Modules)
+
+**Status**: Phase 2 - In Development
+
+### Core Concept
+
+Players have a **Rig** (starter loadout) that provides **Hardware** (abilities with charges). Different hardware types have different **Charge Types** that determine when/how they refresh.
+
+### Resource Charge Types
+
+**Three fundamental charge types with different strategic implications:**
+
+#### 1. Per-Encounter (Internal) - BLUE 🔵
+- **Refreshes**: Every time you enter any encounter
+- **Scope**: Only usable within that specific encounter
+- **Strategy**: "Free" resources - use them liberally
+- **Visual**: Blue border/highlight
+- **Example**: Recompile (2 charges per encounter)
+  - Enter Encounter A → get 2 recompiles
+  - Use both recompiles in A
+  - Enter Encounter B → get 2 fresh recompiles
+  - Cannot use B's recompiles back in A
+
+**Best for**: Beginner-friendly mechanics, low-risk experimentation
+
+#### 2. Per-Run (Universal) - RED 🔴
+- **Refreshes**: Never (until new run starts)
+- **Scope**: Usable in any encounter, persists across encounters
+- **Strategy**: **Very precious** - save for critical moments
+- **Visual**: Red border/highlight
+- **Example**: Jack Out (2 charges per run)
+  - Get 2 jack outs at run start
+  - Use one to escape Encounter A → 1 remaining
+  - Still have 1 for entire rest of run
+  - Choose wisely when to spend
+
+**Best for**: Emergency escapes, high-impact decisions
+
+#### 3. Per-Run Recharging (Hybrid) - PURPLE 🟣
+- **Refreshes**: Whenever you enter a NEW encounter
+- **Scope**: Usable in any encounter, but recharges on encounter entry
+- **Strategy**: **Enables "encounter hopping"** - the key to "encounters as resources"
+- **Visual**: Purple border/highlight with recharge indicator
+- **Example**: Advanced Rollback (1 charge, recharges on entry)
+  - Enter Encounter A → get 1 rollback
+  - Use rollback in A → 0 remaining
+  - Can't rollback anymore in A
+  - Enter Encounter B → **recharged to 1**
+  - Can use in B, or leave and re-enter A to recharge
+  - **Strategic loop**: "I need another rollback in A → enter B to recharge → return to A"
+
+**Best for**: Advanced players, high skill ceiling, tactical encounter sequencing
+
+### Starter Rigs
+
+Players choose (or are assigned) a **Starter Rig** that defines their initial hardware:
+
+```javascript
+const StarterRigs = {
+    Analyst: {
+        name: "Analyst Rig",
+        description: "Tactical planning and adaptation",
+        difficulty: "Beginner",
+        hardware: [
+            {
+                name: "Recompile",
+                charges: 2,
+                chargeType: ResourceChargeType.PER_ENCOUNTER,
+                icon: "🔄",
+                color: "blue",
+                description: "Tuck your hand to bottom, draw 5 new cards"
+            }
+        ]
+    },
+
+    Speedrunner: {
+        name: "Speedrunner Rig",
+        description: "Move fast, skip problems",
+        difficulty: "Intermediate",
+        hardware: [
+            {
+                name: "Jack Out",
+                charges: 5,
+                chargeType: ResourceChargeType.PER_RUN,
+                icon: "🔌",
+                color: "red",
+                description: "Remove encounter from slot, returns to open state"
+            }
+        ]
+    },
+
+    Tactician: {
+        name: "Tactician Rig",
+        description: "Trial and error mastery",
+        difficulty: "Advanced",
+        hardware: [
+            {
+                name: "Recompile",
+                charges: 1,
+                chargeType: ResourceChargeType.PER_ENCOUNTER,
+                icon: "🔄",
+                color: "blue"
+            },
+            {
+                name: "Jack Out",
+                charges: 2,
+                chargeType: ResourceChargeType.PER_RUN,
+                icon: "🔌",
+                color: "red"
+            },
+            {
+                name: "Rollback",
+                charges: 2,
+                chargeType: ResourceChargeType.PER_RUN_RECHARGE,
+                icon: "⏮️",
+                color: "purple",
+                description: "Undo the last trick played"
+            }
+        ]
+    },
+
+    // Future rigs...
+};
+```
+
+### Hardware Abilities
+
+**Recompile** (Mulligan)
+- **Flavor**: Neural processor recompiles tactical data
+- **Mechanic**: Tuck current 5 cards to bottom of deck, draw new top 5
+- **Strategy**: Only useful if you've sculpted your deck through other encounters
+- **Visual**: Terminal animation, "RECOMPILING..." message
+
+**Jack Out** (Abort)
+- **Flavor**: Emergency disconnect from encounter node
+- **Mechanic**: Remove encounter from slot without penalty, returns to "open" state
+- **Strategy**: Escape unwinnable situations, free up slot for better encounter
+- **Visual**: Circuit unplugging, encounter fades
+
+**Rollback** (Undo)
+- **Flavor**: Temporal buffer rewinds local timeline
+- **Mechanic**: Undo the last trick played in current encounter
+- **Strategy**: Experiment with different plays, learn opponent AI
+- **Visual**: Glitch effect, cards rewind with VHS distortion
+
+**Scan** (Future)
+- **Flavor**: Deep packet inspection
+- **Mechanic**: Reveal next N cards in your deck
+- **Strategy**: Plan recompiles, know what's coming
+
+**Overload** (Future)
+- **Flavor**: Surge power to hardware
+- **Mechanic**: Next hardware ability triggers twice
+- **Strategy**: Double recompile, double rollback, etc.
+
+### Hardware Modules (Upgrade System - Future)
+
+**Concept**: Find/earn hardware modules as encounter rewards
+
+**Module Types:**
+- **Memory Cache**: +2 Recompile charges (permanent for run)
+- **Escape Pod ICE**: +3 Jack Out charges (permanent for run)
+- **Temporal Buffer**: +1 Rollback charges (permanent for run)
+- **Neural Accelerator**: Change Recompile from per-encounter to per-run-recharge
+- **Charge Converter**: Convert charge types (trade 2 red for 1 purple, etc.)
+
+**Acquisition:**
+- Encounter rewards (pick 1 of 3)
+- Map nodes (hardware shops)
+- Boss defeats (powerful modules)
+
+### UI Design Considerations
+
+**Current Implementation (Phase 2a MVP):**
+- Simple buttons in encounter window
+- Show charge count: "🔄 Recompile (2)"
+- Blue border for per-encounter resources
+- Disable when out of charges
+
+**Future UI Features:**
+
+#### External Rig Display
+```
+┌─────────────────────┐
+│ ANALYST RIG         │
+├─────────────────────┤
+│ 🔄 Recompile (2)    │ ← Per-encounter (blue)
+│ 🔌 Jack Out (3)     │ ← Per-run (red)
+│ ⏮️ Rollback (1)     │ ← Per-run-recharge (purple)
+└─────────────────────┘
+```
+
+#### Recharge Indicators
+- **Purple resources flash** when you select a new encounter (indicating they'd recharge)
+- Encounter preview shows: "Entering this encounter will recharge: ⏮️ Rollback"
+- Tooltip on hover: "Used 1/1 in Encounter A. Will recharge to 1/1 on entry."
+
+#### Encounter Resource Preview
+When hovering over encounter card in hand, show:
+```
+Resources available in this encounter:
+🔄 Recompile (2) ← Blue
+⏮️ Rollback (1) ← Purple (recharged from 0)
+```
+
+#### In-Encounter Resource Display
+```
+┌─────────────────────────────┐
+│ Trick Battle                │
+│ ┌─────────────────────────┐ │
+│ │ RESOURCES               │ │
+│ │ 🔄 Recompile (2/2)     │ │ ← Blue bar
+│ │ ⏮️ Rollback (0/1)      │ │ ← Purple bar (depleted)
+│ └─────────────────────────┘ │
+│ ...encounter content...     │
+└─────────────────────────────┘
+```
+
+### Strategic Implications
+
+**Per-Encounter Resources (Blue):**
+- Encourages experimentation within encounters
+- Low pressure, beginner-friendly
+- "Try recompile and see what happens"
+
+**Per-Run Resources (Red):**
+- High-stakes decisions
+- Teaches resource conservation
+- "Do I really need to jack out, or can I solve this another way?"
+
+**Per-Run-Recharge Resources (Purple):**
+- **Enables the core strategic loop**: "encounters as resources to solve encounters"
+- High skill ceiling
+- Advanced players can "farm" recharges by entering/exiting encounters
+- Creates decision: "Stay in A and fail? Or enter B to recharge and return to A?"
+
+**Example Strategic Sequence:**
+1. Enter Encounter A with hand [A,A,2,2,3]
+2. Can't win with this hand
+3. Use Recompile (blue, per-encounter) → new hand [3,3,2,A,A]
+4. Still can't win
+5. Use Rollback (purple, per-run-recharge) to test a play
+6. Out of rollbacks in this encounter
+7. **Strategic choice**:
+   - Jack Out (red, per-run) → lose precious resource
+   - Enter Encounter B → recharges Rollback
+   - Complete B (or use its resources to sculpt deck)
+   - Return to A with recharged Rollback + modified deck
+   - Use Recompile again (fresh in new entry) → different hand
+   - Solve puzzle!
+
+### Implementation Phases
+
+**Phase 2a (Current):**
+- ✅ Rig system architecture
+- ✅ Per-encounter Recompile only
+- ✅ Simple UI (buttons in encounter)
+- ✅ Charge tracking
+
+**Phase 2b:**
+- [ ] Per-run Jack Out
+- [ ] Per-run-recharge Rollback
+- [ ] Multiple starter rigs
+- [ ] Rig selection screen
+
+**Phase 2c:**
+- [ ] Visual polish (animations, color coding)
+- [ ] Recharge indicators
+- [ ] External rig display
+- [ ] Encounter resource preview
+
+**Phase 2d:**
+- [ ] Hardware modules as rewards
+- [ ] Module shop nodes
+- [ ] Module stacking/upgrading
+
+### Design Principles
+
+1. **Color = Charge Type**: Blue, Red, Purple instantly communicate behavior
+2. **Conservative Defaults**: Start with fewer charges, can always add more
+3. **Rig Differentiation**: Each rig should enable different playstyles
+4. **Reward Scaling**: Better players get more from purple resources
+5. **No False Choices**: Every rig/resource should be viable
+
+### Open Questions
+
+1. **Charge Counts**: What's the right number of charges per rig?
+   - Needs playtesting
+   - Start conservative, increase if too restrictive
+
+2. **Rig Unlocks**: How do players unlock new rigs?
+   - Meta-progression after run completion?
+   - Achievements (beat run with only 1 jack out, unlock Speedrunner)?
+
+3. **Mid-Run Rig Switching**: Should players ever change rigs mid-run?
+   - Probably not - too complex
+   - Rigs define run identity
+
+4. **Hardware Stacking**: Can you have 2 Memory Caches for +4 recompiles?
+   - Yes - encourages build variety
+   - Cap at +X total? Or unlimited scaling?
+
+5. **Negative Hardware**: Modules that add constraints for benefits?
+   - "Fragile ICE": +2 jack outs, but recompile only gives 3 cards instead of 5
+   - "Overclocked Processor": +1 rollback per encounter, but -1 card in hand
+   - High skill ceiling builds
+
 ## Future Mechanics (Parking Lot)
 
 ### Daemons
