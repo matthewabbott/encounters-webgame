@@ -489,3 +489,419 @@ Each encounter type should have:
 - War → **Brute Force Clash**
 - Straight → **Linear Sequence**
 
+---
+
+# DESIGN EVOLUTION: Trick-Taking as Primary Encounter Type
+
+**Status**: Major design pivot under consideration
+**Date**: 2025-01-08
+
+## The Vision
+
+Move from diverse encounter categories (sum, sequence, collection, etc.) to **trick-taking as the primary or even sole encounter type**. This unifies the game around a single, deeply strategic core mechanic.
+
+## Why Trick-Taking?
+
+1. **Deep strategic space**: Trick-taking games (Euchre, Hearts, Bridge) have centuries of proven depth
+2. **Deterministic puzzles**: With face-up opponent hands, each encounter becomes a solvable puzzle
+3. **Deck sculpting synergy**: The core loop of "modify deck → solve puzzle" is perfectly suited to trick-taking
+4. **Interplay between systems**: Use encounters to shape deck for other encounters
+5. **Accessible complexity**: Simple to understand, hard to master
+
+## Core Trick-Taking Encounter
+
+### Setup
+- **Player hand**: 5 cards drawn from deck
+- **Opponent(s)**: 1-3 opponents with **face-up hands** (deterministic puzzle)
+- **AI behavior**: Simple, visually indicated rules
+- **Win condition**: Take exactly X tricks, at least X tricks, fewer than X tricks
+
+### AI Behavior System
+
+**Visual Border Indicators:**
+- **No Border (Neutral)**: Plays leftmost card
+- **Red Border (Aggressive)**: ALWAYS plays if it would win the trick
+  - Will skip over leftmost cards to play red-bordered card that wins
+  - Forces maximum trick-taking
+- **Blue Border (Passive)**: NEVER voluntarily wins tricks
+  - Will play if it won't win
+  - Only wins if forced (all remaining cards are blue, or must follow suit)
+
+**Why This Works:**
+- Completely deterministic (no randomness once cards are dealt)
+- Visual language makes AI readable at a glance
+- Creates puzzle scenarios: "How do I sequence my cards to take exactly 3 tricks?"
+- Different AI personalities via border distributions
+
+### The Puzzle Question
+
+Every encounter asks: **"Given these 5 cards and this opponent hand, can you win?"**
+
+**When you CAN win:**
+- Solve the puzzle by sequencing cards correctly
+- Collect rewards
+- Unlock new map slots
+
+**When you CAN'T win:**
+- **Option 1 - Use consumables**: Modify cards/hands to enable victory
+- **Option 2 - Abort**: Unslot encounter (limited resource), remain "open" (not locked)
+- **Option 3 - Mulligan**: Tuck current 5 to bottom, draw new top 5 (requires deck sculpting!)
+- **Option 4 - Sculpt deck**: Complete OTHER encounters to modify deck, then return
+- **Option 5 - Gamble**: Try anyway, fail and lock the encounter (harder to recover)
+
+### Face-Up vs Face-Down
+
+**Face-Up Opponent (Default):**
+- You can see all opponent cards
+- Know if you can win before committing
+- Pure deterministic puzzle
+
+**Face-Down Opponent (Risk/Reward variant):**
+- Opponent hand hidden
+- Can't tell if winnable
+- Higher risk: might fail and lock encounter
+- Higher reward: better prizes if you win the gamble
+
+## Encounters as Resources
+
+**Key Insight**: Encounters become tools to help you win OTHER encounters.
+
+**Example Flow:**
+1. Enter Encounter A with current hand → Can't win
+2. Don't abort! Instead:
+   - Go complete Encounter B (destroy specific high card)
+   - Complete Encounter C (duplicate useful mid-range card)
+   - Get consumable from reward (modify a card value)
+3. Now your deck is sculpted differently
+4. Return to Encounter A, use mulligan to get new 5 cards
+5. New hand can win the puzzle!
+
+**This creates incredible strategic depth:**
+- Long-term planning across multiple encounters
+- Deck composition as evolving puzzle state
+- "Solve encounters to solve encounters"
+
+## Mulligan & Redraw System
+
+### Mulligan Mechanic
+- **Action**: Tuck current 5 cards to bottom of deck, draw new top 5
+- **Limited uses**: Maybe 2-3 per run, or per encounter (varies by starter deck)
+- **Requires setup**: Only effective if you've sculpted top of deck via other encounters
+- **Strategic timing**: When to mulligan vs when to modify deck more?
+
+### Interaction with Deck State
+- If you haven't modified deck, mulligan just gives you random 5
+- If you've destroyed specific cards, your new draw excludes them
+- If you've duplicated cards, more likely to draw them
+- If you've used "stack deck" consumable, you KNOW what you'll draw
+
+**This makes deck sculpting CRUCIAL** - you're not just making deck "better," you're creating specific draws.
+
+## Undo System
+
+**Within-Encounter Undo:**
+- Rewind individual tricks
+- See "what if I had played this card instead?"
+- Limited uses (3 undos per encounter?)
+
+**Resource Differentiation:**
+- Different starter decks trade resources:
+  - **Beginner deck**: 3 undos, 1 mulligan, 2 aborts
+  - **Advanced deck**: 1 undo, 3 mulligans, 1 abort
+  - **Speedrun deck**: 0 undos, 0 mulligans, 5 aborts (just skip hard ones!)
+
+**Possible Consumable:**
+- ICE that grants extra undos?
+- Or undo might be built-in to maintain accessibility
+
+## Abort System
+
+**Abort Action:**
+- Remove encounter from slot without penalty
+- Encounter returns to "unplaced" state (not locked)
+- Slot becomes available again
+- **Limited resource**: Maybe 2-3 per run
+
+**Use Cases:**
+- "I drew a terrible hand and don't want to waste mulligan"
+- "This encounter is harder than I thought"
+- "I need this slot for something else"
+
+**Strategic Layer:**
+- Aborts are precious, use wisely
+- Sometimes better to mulligan or sculpt deck
+- Sometimes better to just take the loss and lock encounter (if you don't need those cards)
+
+## Consumables: Scripts & Programs
+
+### Theme: Vulnerabilities & Exploits
+
+By completing encounters (or finding them on map), you **open vulnerabilities** in the system. Through these vulnerabilities, you can **run scripts** to achieve specific effects.
+
+**Narrative**: You're a netrunner deploying payloads through security holes you've created.
+
+### Script Categories
+
+#### 1. Deck Manipulation (Permanent Effects)
+- `duplicate.bat` - Copy a card permanently
+- `corrupt.sh` - Destroy a card permanently
+- `modify.py` - Change card value by ±N permanently
+- `recolor.exe` - Change card suit/color permanently
+- `stack.exe` - Arrange top X cards in chosen order
+- `mark.sh` - "Mark" cards so you know when they're coming
+
+#### 2. In-Encounter Scripts
+- `swap.sh` - Swap your card with opponent's
+- `discard.exe` - Force opponent to discard X cards
+- `peek.py` - Reveal face-down opponent cards
+- `redraw.exe` - Redraw X cards from your hand
+
+#### 3. Meta Scripts (Modifiers)
+- `overload.bat` - **Next script affects ALL cards in hand**
+  - `overload.bat` + `duplicate.bat` = copy entire hand
+  - `overload.bat` + `corrupt.sh` = destroy entire hand
+  - `overload.bat` + `modify.py +2` = boost all cards by +2
+  - Incredibly powerful combo system!
+
+#### 4. World Scripts (Map Interaction)
+- `breach.exe` - Destroy barrier on map
+- `backdoor.sh` - Unlock alternate path
+- `decrypt.exe` - Reveal hidden map area
+- `scan.py` - Preview encounter before placing
+
+**Implementation Priority**: Start with deck manipulation + overload. Add others later.
+
+## Map as Interactive World
+
+### Current State
+- Tree-based slot generation
+- Slots unlock after completing encounters
+- Purely functional (slots are just containers)
+
+### Future Vision: Meaningful Navigation
+
+**Obstacles:**
+- **Barriers**: Block paths, require `breach.exe` or specific card destruction
+- **Locks**: Require specific card values/suits to pass
+- **ICE Walls**: Need specific scripts to bypass
+
+**Resources:**
+- **Card Nodes**: Free-floating cards you can add to deck
+- **Script Caches**: Find consumable programs
+- **Shops**: Nodes where you pay cards to sculpt deck (add/swap/destroy)
+
+**Meta-Interactions** (Advanced):
+Powers work BOTH in encounters AND on world map:
+- `corrupt.sh` destroys card in encounter OR destroys barrier on map
+- `modify.py` changes card value OR changes lock combination
+- `swap.sh` swaps with opponent in encounter OR swaps cards with shop
+
+**Creates Navigation Choices:**
+- "Do I take the path with 3 easy encounters or 1 hard encounter + shop?"
+- "Should I destroy this barrier or save my `breach.exe` for later?"
+- "I need card X from this shop, but do I want to sacrifice card Y for it?"
+
+## Future Mechanics (Parking Lot)
+
+### Daemons
+- **Persistent effects** that trigger automatically
+- Example: "Next time you would lose a trick, win it instead" (triggers once, then deletes)
+- Example: "Whenever opponent plays red card, you draw a card" (persistent)
+- **Strategic planning**: Set up daemons, then trigger them tactically
+
+### ICE Breakers
+- **Encounter-type specific tools** (like Netrunner TCG)
+- Different breakers for different encounter variants
+- **Renewable resources**: Each breaker gives 3 uses per run?
+- **Build differentiation**: Choose which breakers to bring
+
+### Chips / Hardware
+- **Permanent upgrades** for the run
+- +1 hand size
+- +1 script slot
+- Passive abilities (draw extra card after winning encounter)
+
+### Neural Augments / Starter Decks
+- Different starting configurations
+- Different resource budgets (undos vs mulligans vs aborts)
+- Different starting scripts
+- Different win conditions or restrictions
+
+## Trick-Taking Variants (Future Expansion)
+
+### Lead Mechanics
+- **Steal Lead**: You always play first in trick
+- **Drop Lead**: Opponent always plays first
+- Consumables or encounter modifiers
+
+### Trump Mechanics
+- **Trump Suit**: One suit beats all others
+- **Set Trump**: Choose trump suit
+- **Remove Trump**: Eliminate trump from game
+- **Wildcard Cards**: Always trump, must be played
+
+### Multi-Opponent
+- Face 2-3 opponents simultaneously
+- Each with different AI behavior (one aggressive, one passive)
+- Must navigate multiple strategies
+- Higher difficulty, better rewards
+
+### Special Win Conditions
+- Win **exactly** X tricks (not "at least")
+- Win without using specific suit
+- Win with hand size reduced (play with 3 cards instead of 5)
+- Win while opponent plays face-down (blind puzzle!)
+
+## Two Game Modes
+
+### Roguelite Mode (Primary Focus)
+- Procedurally generated maps
+- Build deck over course of run
+- Permanent upgrades and unlocks between runs
+- Beat boss to complete run
+- Meta-progression (unlock new starters, scripts, etc.)
+
+### Puzzle Mode (Future)
+- **Handcrafted scenarios** with fixed everything:
+  - Fixed deck composition
+  - Fixed encounter layouts
+  - Fixed opponent hands
+  - Fixed starting resources (scripts, mulligans, undos)
+- **Goal**: Figure out the sequence of actions to beat all encounters
+- **"Into the Breach meets Balatro"**
+- Optional bonus objectives for replayability
+- Daily/weekly challenges
+- Leaderboards for speed or efficiency
+
+**Puzzle Mode Benefits:**
+- Tutorial levels (teach mechanics in controlled environment)
+- Test your understanding without RNG
+- Share puzzles with community
+- "Can you beat this in 5 encounters?" challenges
+
+## Open Design Questions
+
+### 1. Encounter Type Mix
+- **Option A**: Trick-taking is THE ONLY encounter type
+  - All depth from variants (multi-opponent, trump, lead, etc.)
+  - Unified experience
+- **Option B**: Trick-taking is PRIMARY, but sum/sequence exist as occasional variants
+  - More variety, less focus
+  - Could repurpose existing code
+
+**Recommendation**: Start with Option A. Commit to the vision fully.
+
+### 2. Vulnerability System
+How do players acquire scripts?
+- **Option A**: Automatic from encounter rewards
+- **Option B**: Must "open vulnerability" first (special encounters or map nodes)
+- **Option C**: Scripts are found/purchased, vulnerabilities are just thematic
+
+**Recommendation**: Option A for MVP. Thematic fluff can come later.
+
+### 3. Resource Budgets
+How many of each resource?
+- Mulligans per run: 2-3?
+- Undos per encounter: 3?
+- Aborts per run: 2?
+- Script slots: 3-5?
+
+**Needs playtesting** - too many makes it too easy, too few makes it frustrating.
+
+### 4. Starter Deck Differentiation
+How different should starters be?
+- **Shallow**: Just different resource budgets
+- **Medium**: Different card distributions (high cards vs low cards vs balanced)
+- **Deep**: Completely different mechanics (one uses daemons, one uses ICE, etc.)
+
+**Recommendation**: Start shallow (just resources), expand to medium, deep is post-launch.
+
+### 5. Map Integration Timeline
+When to add world navigation features?
+- **MVP**: Just basic slot unlocking
+- **Phase 2**: Card nodes and shops
+- **Phase 3**: Barriers and obstacles
+- **Phase 4**: Meta-interactions (scripts work on map)
+
+**Recommendation**: MVP first, don't get distracted by fancy map stuff yet.
+
+## Implementation Roadmap
+
+### Phase 1: Core Trick-Taking ✋ (NEXT PRIORITY)
+- [ ] Implement basic trick-taking encounter type
+- [ ] 1v1 opponent with simple AI
+- [ ] Face-up opponent hands (deterministic)
+- [ ] Border-based AI behavior (red/blue/neutral)
+- [ ] Win X tricks condition
+- [ ] Visual polish (clear trick winners, score display)
+
+### Phase 2: Deck Interaction
+- [ ] Mulligan system (tuck 5, draw new 5)
+- [ ] Mulligan counter (limited uses)
+- [ ] Abort system (remove from slot)
+- [ ] Deck state affects mulligan results
+
+### Phase 3: Basic Consumables
+- [ ] Script slot system (hold 3-5 scripts)
+- [ ] Deck manipulation scripts (duplicate, corrupt, modify)
+- [ ] Script rewards from encounters
+- [ ] Script usage during encounters
+
+### Phase 4: Advanced Consumables
+- [ ] Overload meta-script (apply to all cards)
+- [ ] In-encounter scripts (swap, discard, redraw)
+- [ ] Combo system (overload + others)
+
+### Phase 5: Undo System
+- [ ] Undo button in encounters
+- [ ] Undo counter (3 per encounter?)
+- [ ] History tracking for rewind
+- [ ] Visual feedback on undo
+
+### Phase 6: Difficulty Variants
+- [ ] Face-down opponents (gambling)
+- [ ] Multi-opponent encounters
+- [ ] Different win conditions (exactly X, fewer than X, etc.)
+- [ ] Trump/lead mechanics
+
+### Phase 7: Map Evolution
+- [ ] Card nodes on map
+- [ ] Shop nodes
+- [ ] Barriers requiring scripts
+
+### Phase 8: Puzzle Mode
+- [ ] Scenario system (fixed decks/encounters)
+- [ ] Puzzle editor (for creating scenarios)
+- [ ] Daily challenges
+- [ ] Sharing system
+
+## Design Principles Moving Forward
+
+1. **Commit to the vision**: Trick-taking is the core. Don't dilute it.
+
+2. **Interplay between systems**: Every mechanic should interact with others meaningfully.
+
+3. **Deterministic puzzles**: Players should be able to see and solve puzzles with perfect information.
+
+4. **Deck sculpting is key**: The game is about building the right deck to solve specific puzzles.
+
+5. **Encounters as resources**: Use encounters to help you beat other encounters.
+
+6. **Netrunner fantasy**: Everything should feel like hacking - scripts, vulnerabilities, exploits.
+
+7. **Accessibility through depth**: Simple to learn (win X tricks), hard to master (deck sculpting across multiple encounters).
+
+## Conclusion
+
+This is a **significant evolution** from the original "category soup" design. We're pivoting to **deep mastery of a single mechanic** (trick-taking) rather than shallow coverage of many mechanics.
+
+The result should be:
+- **More focused** gameplay loop
+- **Deeper** strategic space
+- **Clearer** identity (it's a deck-building trick-taking roguelite puzzle game)
+- **Stronger** theme integration (netrunner running scripts through vulnerabilities)
+
+The interplay between deck sculpting, mulligans, encounter sequencing, and consumable usage creates a unique strategic experience that doesn't exist in other games.
+
+**Next step**: Implement basic trick-taking encounter (Phase 1) and playtest to validate the core loop.
+
