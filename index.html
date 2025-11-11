@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel Encounters - Card Game Prototype</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>Parallel Encounters</h1>
+            <div class="game-stats">
+                <div class="stat">
+                    <span class="stat-label">Progress:</span>
+                    <span id="run-progress" class="stat-value">0/6</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Deck:</span>
+                    <span id="deck-count" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Active Encounters:</span>
+                    <span id="active-encounters" class="stat-value">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Left sidebar: Deck and controls -->
+            <aside class="sidebar">
+                <div class="deck-section">
+                    <h2>Deck</h2>
+                    <div id="deck-display" class="deck-pile">
+                        <div class="card-back">?</div>
+                    </div>
+                    <div id="deck-contents" class="deck-info"></div>
+                </div>
+
+                <div class="controls-section">
+                    <h2>Actions</h2>
+                    <button id="new-encounter-btn" class="btn btn-primary" style="display: none;">
+                        Start New Encounter (OLD)
+                    </button>
+                    <button id="reset-game-btn" class="btn btn-secondary">
+                        Reset Game
+                    </button>
+                </div>
+
+                <div class="commands-section">
+                    <h2>Exploits <span class="command-count" id="command-count">(0/5)</span></h2>
+                    <div id="command-inventory" class="command-inventory">
+                        <div class="command-empty-state">No exploits yet</div>
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <h2>Run Progress</h2>
+                    <div id="boss-countdown" class="boss-countdown">
+                        <div class="countdown-label">Encounters until boss:</div>
+                        <div class="countdown-value">6</div>
+                    </div>
+                    <div id="upcoming-encounters" class="upcoming-encounters" style="display: none;">
+                        <!-- DEPRECATED: Upcoming encounter preview - replaced by encounter hand -->
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>How to Play</h3>
+                    <p>Enter multiple encounters simultaneously. All encounters share the same deck!</p>
+                    <p>Cards in one encounter's hand can't be drawn in another encounter.</p>
+                    <p>Complete encounters to return cards to the deck.</p>
+                </div>
+            </aside>
+
+            <!-- Main area: Map with encounters -->
+            <main class="encounters-area">
+                <div id="map-viewport" class="map-viewport">
+                    <div id="map-canvas" class="map-canvas">
+                        <svg id="map-connections" class="map-connections">
+                            <!-- Connection lines will be drawn here -->
+                        </svg>
+                        <div id="map-slots" class="map-slots">
+                            <!-- Slots will be dynamically added here -->
+                        </div>
+                        <svg id="encounter-tethers" class="encounter-tethers">
+                            <!-- Tether lines from floating windows to ports -->
+                        </svg>
+                        <div id="encounters-container" class="encounters-on-map">
+                            <!-- Encounters will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="empty-state" class="empty-state">
+                    <p>No active encounters. Select a card from your hand and click a slot to begin!</p>
+                </div>
+
+                <div class="map-controls">
+                    <div class="map-hint">💡 Click and drag to pan • Scroll to zoom</div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Encounter Hand -->
+        <div id="encounter-hand-container" class="encounter-hand-container">
+            <div class="encounter-hand-header">
+                <span class="hand-label">Encounter Hand</span>
+                <button id="draw-encounter-btn" class="btn btn-draw">Draw Card</button>
+                <span class="deck-count-label">Deck: <span id="encounter-deck-count">0</span></span>
+            </div>
+            <div id="encounter-hand" class="encounter-hand">
+                <!-- Encounter cards will be added here -->
+            </div>
+        </div>
+
+        <footer>
+            <p>Prototype v0.1 - Parallel Encounters Concept</p>
+        </footer>
+    </div>
+
+    <!-- Encounter Selection Modal -->
+    <div id="encounter-selection-modal" class="modal">
+        <div class="modal-content">
+            <h2>Select an Encounter</h2>
+            <div id="encounter-options" class="encounter-options">
+                <!-- Options will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Reward Selection Modal -->
+    <div id="reward-selection-modal" class="modal">
+        <div class="modal-content reward-modal">
+            <h2 id="reward-title">🎁 Select Your Reward</h2>
+            <p id="reward-description" class="reward-description"></p>
+            <div id="reward-cards" class="reward-cards">
+                <!-- Reward cards will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notification-modal" class="modal notification-modal">
+        <div class="modal-content notification-content">
+            <div id="notification-icon" class="notification-icon"></div>
+            <h2 id="notification-title"></h2>
+            <p id="notification-message"></p>
+            <button id="notification-ok-btn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal confirmation-modal">
+        <div class="modal-content confirmation-content">
+            <h2 id="confirmation-title"></h2>
+            <p id="confirmation-message"></p>
+            <div class="confirmation-buttons">
+                <button id="confirmation-yes-btn" class="btn btn-danger">Yes</button>
+                <button id="confirmation-no-btn" class="btn btn-secondary">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="encounter-template">
+        <div class="encounter" data-encounter-id="">
+            <div class="encounter-header">
+                <div class="header-left">
+                    <div class="title-row">
+                        <span class="category-badge" title=""></span>
+                        <h3 class="encounter-title"></h3>
+                    </div>
+                    <span class="encounter-status"></span>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-tiny minimize-btn" title="Minimize">−</button>
+                    <span class="encounter-type"></span>
+                </div>
+            </div>
+            <div class="encounter-objective"></div>
+            <div class="encounter-progress"></div>
+            <div class="encounter-hand">
+                <div class="hand-label">Hand:</div>
+                <div class="cards-container"></div>
+            </div>
+            <div class="encounter-actions">
+                <button class="btn btn-small draw-btn">Draw Card</button>
+                <button class="btn btn-small complete-btn" style="display:none;">Complete</button>
+                <button class="btn btn-small btn-danger abandon-btn">Abandon</button>
+            </div>
+        </div>
+    </template>
+
+    <template id="card-template">
+        <div class="card" data-card-id="">
+            <div class="card-rank"></div>
+            <div class="card-suit"></div>
+        </div>
+    </template>
+
+    <script type="module" src="game.js"></script>
+</body>
+</html>
