@@ -2,6 +2,7 @@ import { EncounterTypes, Difficulty } from './encounters.js';
 import { UI } from './ui.js';
 import { ResourceChargeType, StarterRigs } from './rigs.js';
 import { CommandMode, BaseCommands, getRandomCommand } from './commands.js';
+import { GridMap } from './grid.js';
 
 /**
  * Card class representing a playing card
@@ -254,24 +255,22 @@ class Encounter {
 class Game {
     constructor() {
         this.deck = new Deck();
-        this.encounters = new Map();
+        this.encounters = new Map(); // Active encounters (Map<encounterId, encounter>)
         this.nextEncounterId = 1;
-        this.maxEncounterSlots = 2; // MVP: Start with 2 slots
 
         // Run progression tracking
         this.encountersCleared = 0;
-        this.encountersNeededForBoss = 6;
         this.bossDefeated = false;
-        this.bossDeclineCount = 0; // Track how many times player declined boss
-        this.maxBossDeclines = 2;
 
-        // Encounter deck system
-        this.encounterDeck = [];
-        this.encounterHand = [];
-        this.encounterHandSize = 3;
-        this.initializeEncounterDeck();
+        // Grid map system (replaces encounter deck)
+        const encounterTypesList = Object.values(EncounterTypes);
+        this.gridMap = new GridMap(encounterTypesList);
 
-        // Hardware/Resource system
+        // MEM resource system
+        this.mem = 2; // Start with 2 MEM
+        this.maxMem = 2;
+
+        // Hardware/Resource system (Recompile, Jack Out, Rollback)
         this.currentRig = StarterRigs.Analyst; // Start with Analyst rig
         this.runResources = new Map(); // For per-run and per-run-recharge resources
         this.encounterResources = new Map(); // For per-encounter resources (current encounter only)
@@ -282,71 +281,177 @@ class Game {
         this.maxCommands = 5;
         this.commandInUse = null; // Currently selected command awaiting card selection
 
-        // Pre-generated encounter options (for preview) - DEPRECATED, will remove
-        this.nextEncounterOptions = [];
-        this.generateNextEncounterOptions();
-
         this.ui = new UI(this);
 
-        // Update encounter hand UI after UI is created
-        this.ui.updateEncounterHand();
+        // Render initial grid map
+        this.ui.renderGridMap();
     }
 
+    // ===== Grid Map & MEM System Methods =====
+
+    /**
+     * Attempt to unlock a socket (costs 1 MEM)
+     */
+    unlockSocket(socket) {
+        // Check if we have MEM
+        if (this.mem < 1) {
+            this.ui.showNotification('Insufficient MEM', 'Need 1 MEM to unlock socket', '⚠️');
+            return false;
+        }
+
+        // Check if socket can be unlocked
+        if (!this.gridMap.canUnlock(socket)) {
+            this.ui.showNotification('Cannot Unlock', 'Socket not adjacent to unlocked socket', '⚠️');
+            return false;
+        }
+
+        // Spend MEM
+        this.mem--;
+
+        // Unlock socket in grid
+        this.gridMap.unlockSocket(socket);
+
+        // Create encounter instance
+        const encounterId = this.nextEncounterId++;
+        const encounter = {
+            id: encounterId,
+            type: socket.encounterType,
+            cards: [],
+            handIndex: null,
+            tricksWon: 0,
+            tricksNeeded: socket.encounterType.tricksNeeded || 3,
+            active: true,
+            failed: false,
+            resolved: false,
+            socket: socket // Link back to grid socket
+        };
+
+        // Auto-deal cards from deck (no choice)
+        const cardsNeeded = socket.encounterType.handSize || 5;
+        for (let i = 0; i < cardsNeeded; i++) {
+            const card = this.deck.drawCard();
+            if (card) {
+                encounter.cards.push(card);
+            }
+        }
+
+        // Store encounter
+        this.encounters.set(encounterId, encounter);
+        socket.encounter = encounter;
+
+        // Update UI
+        this.ui.renderGridMap();
+        this.ui.showNotification('Socket Unlocked', `${socket.encounterType.name} (${cardsNeeded} cards dealt)`, '🔓');
+
+        return true;
+    }
+
+    /**
+     * Complete an encounter successfully
+     */
+    completeEncounter(encounterId) {
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter) return false;
+
+        // Mark socket as won
+        if (encounter.socket) {
+            this.gridMap.winSocket(encounter.socket);
+            encounter.socket.encounter = null;
+        }
+
+        // Free up MEM
+        this.mem = Math.min(this.mem + 1, this.maxMem);
+
+        // Award rewards (commands, MEM upgrades, etc.)
+        this.awardEncounterRewards(encounter);
+
+        // Track progress
+        this.encountersCleared++;
+
+        // Check for boss victory
+        if (encounter.type.difficulty === Difficulty.BOSS) {
+            this.bossDefeated = true;
+            this.ui.showNotification('BOSS DEFEATED', 'You breached the system!', '🏆');
+        }
+
+        // Remove encounter
+        this.encounters.delete(encounterId);
+
+        // Update UI
+        this.ui.renderGridMap();
+
+        return true;
+    }
+
+    /**
+     * Fail an encounter
+     */
+    failEncounter(encounterId) {
+        const encounter = this.encounters.get(encounterId);
+        if (!encounter) return false;
+
+        // Mark socket as failed
+        if (encounter.socket) {
+            this.gridMap.failSocket(encounter.socket);
+            encounter.socket.encounter = null;
+        }
+
+        // MEM stays locked (don't refund)
+        this.ui.showNotification('Encounter Failed', 'MEM locked, socket blocked', '❌');
+
+        // Remove encounter
+        this.encounters.delete(encounterId);
+
+        // Update UI
+        this.ui.renderGridMap();
+
+        return true;
+    }
+
+    /**
+     * Award rewards for completing an encounter
+     */
+    awardEncounterRewards(encounter) {
+        const difficulty = encounter.type.difficulty;
+
+        // Award commands based on difficulty
+        let shouldGiveCommand = false;
+        if (difficulty === Difficulty.BOSS) {
+            shouldGiveCommand = true;
+            // Boss also gives +1 max MEM
+            this.maxMem++;
+            this.mem = Math.min(this.mem + 1, this.maxMem);
+            this.ui.showNotification('MEM Upgrade', '+1 Max MEM!', '⬆️');
+        } else if (difficulty === Difficulty.HARD) {
+            shouldGiveCommand = Math.random() < 0.7; // 70% chance
+        } else if (difficulty === Difficulty.MEDIUM) {
+            shouldGiveCommand = Math.random() < 0.5; // 50% chance
+        }
+
+        if (shouldGiveCommand) {
+            const command = getRandomCommand();
+            this.addCommand(command);
+        }
+    }
+
+    // ===== DEPRECATED - Old Encounter Deck System (to be removed) =====
+
     initializeEncounterDeck() {
-        // Build initial encounter deck
-        // Start with a pool of non-boss encounters
-        const normalEncounters = Object.keys(EncounterTypes)
-            .filter(key => EncounterTypes[key].difficulty !== Difficulty.BOSS)
-            .map(key => EncounterTypes[key]);
-
-        // Add multiple copies of each encounter type for variety
-        this.encounterDeck = [];
-        normalEncounters.forEach(encounterType => {
-            // Add 2 copies of each encounter type
-            this.encounterDeck.push(encounterType);
-            this.encounterDeck.push(encounterType);
-        });
-
-        // Shuffle the deck
-        this.shuffleEncounterDeck();
-
-        // Add boss at the bottom (will be drawn when deck is nearly empty)
-        const bossEncounters = Object.keys(EncounterTypes)
-            .filter(key => EncounterTypes[key].difficulty === Difficulty.BOSS)
-            .map(key => EncounterTypes[key]);
-        if (bossEncounters.length > 0) {
-            const randomBoss = bossEncounters[Math.floor(Math.random() * bossEncounters.length)];
-            this.encounterDeck.push(randomBoss);
-        }
-
-        // Don't auto-fill hand - player must draw manually
-        // Draw initial cards (start with 0, player draws)
-        if (this.ui) {
-            this.ui.updateEncounterHand();
-        }
+        // DEPRECATED - Grid map system replaces this
     }
 
     shuffleEncounterDeck() {
-        // Fisher-Yates shuffle
-        for (let i = this.encounterDeck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.encounterDeck[i], this.encounterDeck[j]] = [this.encounterDeck[j], this.encounterDeck[i]];
-        }
+        // DEPRECATED
     }
 
     drawEncounterCard() {
-        if (this.encounterDeck.length === 0) {
-            return null;
-        }
-        return this.encounterDeck.shift(); // Draw from top of deck
+        // DEPRECATED
+        return null;
     }
 
     fillEncounterHand() {
-        // DEPRECATED - kept for compatibility
-        // Fill hand up to hand size
-        while (this.encounterHand.length < this.encounterHandSize && this.encounterDeck.length > 0) {
-            const card = this.drawEncounterCard();
-            if (card) {
+        // DEPRECATED - Grid map system replaces this
+        // (code below kept temporarily for compatibility)
                 this.encounterHand.push(card);
             }
         }
