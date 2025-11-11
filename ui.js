@@ -39,6 +39,10 @@ class UI {
         this.commandInventoryEl = document.getElementById('command-inventory');
         this.commandCountEl = document.getElementById('command-count');
 
+        // MEM resource elements
+        this.memCurrentEl = document.getElementById('mem-current');
+        this.memMaxEl = document.getElementById('mem-max');
+
         // Map state
         this.mapState = {
             panX: 100,
@@ -584,6 +588,161 @@ class UI {
 
             this.commandInventoryEl.appendChild(commandEl);
         });
+    }
+
+    updateMemDisplay() {
+        // Update MEM resource display
+        if (this.memCurrentEl) {
+            this.memCurrentEl.textContent = this.game.mem;
+        }
+        if (this.memMaxEl) {
+            this.memMaxEl.textContent = this.game.maxMem;
+        }
+    }
+
+    renderGridMap() {
+        // Render the grid map sockets
+        if (!this.game.gridMap) return;
+
+        // Clear existing slots
+        this.mapSlots.innerHTML = '';
+
+        const sockets = this.game.gridMap.getAllSockets();
+        const socketSize = 100; // Visual size of each socket
+        const gridSpacing = 120; // Spacing between sockets
+        const startX = 100; // Starting X position
+        const startY = 100; // Starting Y position
+
+        sockets.forEach(socket => {
+            // Skip walls
+            if (socket.isWall) return;
+
+            // Only render visible and unlocked/won/failed sockets (not hidden)
+            if (socket.state === 'hidden') return;
+
+            const socketEl = document.createElement('div');
+            socketEl.className = `map-slot grid-socket socket-${socket.state}`;
+            socketEl.dataset.socketId = socket.id;
+            socketEl.dataset.x = socket.x;
+            socketEl.dataset.y = socket.y;
+
+            // Position on grid
+            const worldX = startX + (socket.x * gridSpacing);
+            const worldY = startY + (socket.y * gridSpacing);
+            socketEl.style.left = `${worldX}px`;
+            socketEl.style.top = `${worldY}px`;
+            socketEl.style.width = `${socketSize}px`;
+            socketEl.style.height = `${socketSize}px`;
+
+            // Add difficulty color class
+            if (socket.encounterType) {
+                const difficultyClass = `difficulty-${socket.encounterType.difficulty}`;
+                socketEl.classList.add(difficultyClass);
+            }
+
+            // Create socket content
+            const contentEl = document.createElement('div');
+            contentEl.className = 'socket-content';
+
+            // Show different content based on state
+            if (socket.state === 'visible') {
+                // Visible but locked - show hints
+                const iconEl = document.createElement('div');
+                iconEl.className = 'socket-icon';
+                iconEl.textContent = socket.encounterType?.categoryIcon || '?';
+                contentEl.appendChild(iconEl);
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'socket-name';
+                nameEl.textContent = socket.difficulty || '?';
+                contentEl.appendChild(nameEl);
+
+                // Make clickable for unlocking
+                socketEl.classList.add('socket-clickable');
+                socketEl.addEventListener('click', () => this.onSocketClick(socket));
+
+            } else if (socket.state === 'unlocked') {
+                // Active encounter
+                const nameEl = document.createElement('div');
+                nameEl.className = 'socket-name';
+                nameEl.textContent = socket.encounterType?.name || 'Active';
+                contentEl.appendChild(nameEl);
+
+                const statusEl = document.createElement('div');
+                statusEl.className = 'socket-status';
+                statusEl.textContent = 'ACTIVE';
+                contentEl.appendChild(statusEl);
+
+                // Make clickable to view/play encounter
+                socketEl.classList.add('socket-clickable');
+                socketEl.addEventListener('click', () => this.onActiveSocketClick(socket));
+
+            } else if (socket.state === 'won') {
+                // Completed
+                const iconEl = document.createElement('div');
+                iconEl.className = 'socket-icon';
+                iconEl.textContent = '✓';
+                contentEl.appendChild(iconEl);
+
+                const statusEl = document.createElement('div');
+                statusEl.className = 'socket-status';
+                statusEl.textContent = 'WON';
+                contentEl.appendChild(statusEl);
+
+            } else if (socket.state === 'failed') {
+                // Failed
+                const iconEl = document.createElement('div');
+                iconEl.className = 'socket-icon';
+                iconEl.textContent = '✗';
+                contentEl.appendChild(iconEl);
+
+                const statusEl = document.createElement('div');
+                statusEl.className = 'socket-status';
+                statusEl.textContent = 'FAILED';
+                contentEl.appendChild(statusEl);
+            }
+
+            // Add boss indicator
+            if (socket.isBoss) {
+                const bossEl = document.createElement('div');
+                bossEl.className = 'socket-boss-indicator';
+                bossEl.textContent = '👑 BOSS';
+                contentEl.appendChild(bossEl);
+            }
+
+            socketEl.appendChild(contentEl);
+            this.mapSlots.appendChild(socketEl);
+        });
+
+        // Update MEM display
+        this.updateMemDisplay();
+    }
+
+    onSocketClick(socket) {
+        // Handle clicking a visible socket to unlock it
+        if (socket.state !== 'visible') return;
+
+        // Check if we can unlock
+        if (!this.game.gridMap.canUnlock(socket)) {
+            this.showNotification('Cannot Unlock', 'Not adjacent to unlocked socket', '⚠️');
+            return;
+        }
+
+        // Attempt to unlock (game.js handles MEM check and card dealing)
+        const success = this.game.unlockSocket(socket);
+        if (success) {
+            // Re-render map to show new state
+            this.renderGridMap();
+        }
+    }
+
+    onActiveSocketClick(socket) {
+        // Handle clicking an active socket to view/play encounter
+        if (socket.state !== 'unlocked') return;
+        if (!socket.encounter) return;
+
+        // Render the encounter (existing method)
+        this.renderEncounter(socket.encounter);
     }
 
     enterCardSelectionMode() {
