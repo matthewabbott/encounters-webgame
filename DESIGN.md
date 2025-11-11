@@ -10,43 +10,179 @@ You're a netrunner infiltrating a corporate blacksite. Each "encounter" is a pie
 
 ### Completed
 - ✅ Circuit board map with pan/zoom
-- ✅ Slot visualization (unlocked/locked)
-- ✅ Encounter deck system (shuffled deck of encounters)
-- ✅ Encounter hand (3 cards displayed at bottom)
-- ✅ Click card → click slot → place encounter
-- ✅ Encounter categories with visual badges
+- ✅ Commands system (fork, shred, ++)
+- ✅ Resource/Rig system (Recompile, Jack Out, Rollback)
+- ✅ Trick-taking encounter system
+- ✅ Basic slot visualization
 
-### In Progress / Near Future
-
-**"The Outside Hand" - Unified Bottom UI (HIGH PRIORITY)**
-
-The bottom panel should be "the outside hand" - everything the player holds that isn't on the map.
-
-**Minimizable Design**:
-- Default: Receded toward bottom, showing only top corners of items
-- Each item shows its icon/symbol in the corner
-- **Hover**: Slightly expands to show more info
-- **Click**: Fully expands to show all details
-- Saves screen space while keeping items accessible
-
-**Contents**:
-- **Encounter cards** (current implementation)
-- **Consumables** (future: one-time use items)
-- **Literal playing cards** (future: rare drops that can be played into any encounter)
-- Other meta-items
-
-**Implementation**:
-- Single visual container
-- Multiple data structures under the hood (encounterHand, consumables[], etc.)
-- Consistent visual language across all item types
+### DEPRECATED / TO BE REPLACED
+- ❌ Encounter deck system → Replacing with grid map exploration
+- ❌ Encounter hand (3 cards) → Removing entirely
+- ❌ Drag-to-place interaction → Replacing with click-to-unlock
 
 ---
 
-## NEXT EVOLUTION: Circuit Board Map + Encounter Deck System
+## CORE SYSTEM: Grid Map Navigation with MEM (NEW DESIGN)
 
-**Status**: Partially implemented (map + deck done, slot progression pending)
+**Status**: Design complete, ready for implementation
 
-This represents the next major evolution of the game, transforming it from a simple slot-based system into a spatial strategy game with encounter hand management.
+**Core Concept**: Replace encounter deck/hand with pre-generated grid map exploration using MEM as primary resource constraint.
+
+### The Grid Map
+
+**Layout:**
+- **8×8 grid** of sockets (circuit board PCB aesthetic)
+- Some gaps/walls for interesting paths
+- Pre-generated with difficulty gradient
+- Multiple levels: beat boss → new 8×8 opens to the right
+
+**Starting State:**
+- **First socket unlocked** in corner (limits initial choices)
+- **Boss socket** at fixed position, **pre-revealed** (player knows where to path)
+- Start with **2 MEM** (very limited to reduce initial complexity)
+- Receive initial rig upgrade early
+
+**Fog of War:**
+- Can only see sockets **adjacent to any unlocked socket**
+- Locked sockets show **symbolic hints**:
+  - **Difficulty color** (green/yellow/red/purple)
+  - **Encounter category icon** (puzzle/duel/sequence/etc.)
+- Must unlock to see exact encounter details
+
+### MEM Resource System
+
+**MEM (Memory/CPU)** is the primary resource constraint for the game.
+
+**Core Mechanic:**
+- Start with **2 MEM**
+- **1 MEM** to unlock any socket adjacent to any unlocked socket
+- MEM stays allocated while encounter is active
+- **Winning** encounter → frees MEM
+- **Failing** encounter → MEM stays locked (permanent until recovery)
+
+**Progression:**
+- Increase max MEM via:
+  - Rig upgrades (rewards)
+  - Boss defeats
+  - Special encounters
+- Normal playthrough: **8-12 encounters**
+- Peak capacity: **~4 parallel encounters** with buffer MEM
+
+**Strategic Goal:**
+- Modal state: player should feel like they **could** open new encounter if needed
+- Emergency escape: "I'm stuck, let me unlock adjacent socket hoping for better cards"
+
+### Socket States
+
+1. **Hidden** - Behind fog of war, completely invisible
+2. **Visible** - Adjacent to unlocked, shows (color + icon), locked
+3. **Unlocked/Active** - MEM allocated, encounter active, cards dealt
+4. **Won** - Solved, MEM freed, traversable
+5. **Failed** - MEM locked, blocks outbound unlocks
+
+### Unlocking Flow
+
+1. Player clicks any **visible** socket (adjacent to any unlocked socket)
+2. **Spend 1 MEM** → socket unlocks
+3. **Immediately deals top X cards** from deck into encounter (no choice)
+4. Encounter becomes active (trick-taking minigame)
+5. **Reveals fog of war** around newly unlocked socket
+
+**Winning:**
+- Frees MEM (returns to pool)
+- Socket becomes **traversable**
+- Can unlock sockets beyond it
+
+**Failing:**
+- MEM stays **locked** (can't reuse until recovery)
+- Socket becomes **wall** (blocks unlocking sockets beyond it)
+- Must "go around" via other unlocked paths
+- Some encounter types may have different failure behavior:
+  - **Lenient**: Refunds MEM but still blocks outbound
+  - **Strict**: Locks MEM and blocks outbound (default)
+
+### Difficulty Gradient
+
+**Spatial Difficulty:**
+- **2D gradient**: easier near start corner, harder near boss
+- **Some blips**: occasional minibosses or difficulty spikes
+- **Simpler at start**: especially with starter rigs
+
+**Encounter Distribution:**
+- Easy/simple encounters clustered near starting corner
+- Medium encounters in middle regions
+- Hard/complex encounters near boss and edges
+- Boss at fixed, pre-revealed position
+
+### Navigation Strategy
+
+**No Player Position:**
+- Player is omnipresent, controlling entire network
+- Can unlock any socket adjacent to **any** unlocked socket
+- Not about "moving" - about expanding network
+
+**Path Planning:**
+- Boss is visible from start → know where to path
+- Must balance:
+  - Direct path to boss (efficient)
+  - Side paths for resources/upgrades
+  - MEM management (don't overextend)
+  - Risk of failed encounters blocking paths
+
+**Resource Strain (Future):**
+- Some encounters don't refund MEM on win (permanent sinks)
+- Diegetic barriers (impassable without specific builds/commands)
+- Paths can become blocked by failed encounters
+
+### Implementation Roadmap for Grid Map System
+
+**Phase 1: Basic Grid & MEM (MVP)**
+- [ ] Replace encounter deck/hand with grid map
+- [ ] 8×8 grid generation with gaps
+- [ ] MEM resource system (start with 2)
+- [ ] Socket states: Hidden → Visible → Unlocked → Won/Failed
+- [ ] Click-to-unlock interaction (spend MEM)
+- [ ] Fog of war (only see adjacent to unlocked)
+- [ ] Symbolic hints (difficulty color + category icon)
+- [ ] Auto-deal cards on unlock (immediate, no choice)
+
+**Phase 2: Difficulty Gradient**
+- [ ] 2D difficulty gradient (easy at start, hard near boss)
+- [ ] Boss socket at fixed position, pre-revealed
+- [ ] Encounter distribution based on distance from start/boss
+- [ ] Occasional miniboss blips in gradient
+
+**Phase 3: Failure & Blocking**
+- [ ] Failed encounters lock MEM
+- [ ] Failed encounters block outbound unlocks
+- [ ] "Go around" pathfinding
+- [ ] Recovery mechanics (commands/resources to free failed sockets)
+
+**Phase 4: Multi-Level**
+- [ ] Beat boss → new 8×8 grid opens to right
+- [ ] MEM carries over between levels
+- [ ] Difficulty scaling across levels
+- [ ] Meta-progression tracking
+
+**Phase 5: Polish**
+- [ ] Visual polish for socket states
+- [ ] Fog of war animations
+- [ ] MEM UI/display
+- [ ] Path prediction (show which sockets would be revealed)
+- [ ] Tutorial for new system
+
+**What This Replaces:**
+- ❌ Remove: Encounter deck shuffling
+- ❌ Remove: Encounter hand (3 cards at bottom)
+- ❌ Remove: Drag-to-place interaction
+- ❌ Remove: Draw new encounter on placement
+- ✅ Keep: Commands system, rig system, trick-taking encounters
+
+---
+
+## OLD CONTENT TO BE REMOVED/UPDATED
+
+The sections below are from the previous "encounter deck" design and need to be updated or removed.
 
 ### Core Vision: Netrunner Stringing Together Gadgets
 
@@ -1060,30 +1196,165 @@ Resources available in this encounter:
 - Different starting scripts
 - Different win conditions or restrictions
 
-## Trick-Taking Variants (Future Expansion)
+## Encounter Variety & Trick-Taking Variants
+
+**Design Philosophy**: Each encounter alone is relatively simple. Complexity and challenge come from **parallelization** and **resource management** across multiple active encounters.
+
+### Core Win Condition Variants
+
+**Basic Win Conditions:**
+- **Take all tricks** (5/5)
+- **Take no tricks** (0/5)
+- **Take at least X tricks** (e.g., 3+)
+- **Take exactly X tricks** (precise bidding)
+- **Take fewer than X tricks** (avoid winning)
+
+### Opponent Configurations
+
+**Single Opponent (1v1):**
+- Simplest encounters
+- Clear AI behavior (red/blue borders)
+- Good for starting corner of grid
+
+**Multiple Opponents (1v2 or 1v3):**
+- Each opponent has different AI behavior
+- Must navigate multiple strategies simultaneously
+- Higher difficulty, better rewards
+- Good for mid-to-late grid positions
+
+**Ally Manipulation:**
+- Give an **ally** (with specific AI) exactly X tricks
+- You don't win the tricks yourself, but manipulate order to ensure ally wins
+- Requires understanding both ally and opponent AI
+- Advanced puzzle type
+
+### Hand Constraints
+
+**Polarizing Hands:**
+- **All high cards** (J, Q, K) - hard to avoid taking tricks
+- **All low cards** (A, 2, 3) - hard to take tricks
+- **All one suit** - especially if it's trump suit
+- **Wildly mixed values** - no clear strategy
+
+**Why Polarizing Is Good:**
+- Creates distinct puzzle feel
+- Allows trivializing with right commands:
+  - Example: All one suit encounter → change trump suit with `chmod` → suddenly easy
+  - Example: All high cards → change card values with `++` → now manageable
+- Encourages creative command usage
+
+**Reduced Hand Size:**
+- Deal fewer cards (3 instead of 5)
+- Tighter puzzle space
+- Less room for error
+
+### Trump & Suit Mechanics
+
+**Trump Suit:**
+- One suit beats all others regardless of value
+- **Set Trump**: Encounter declares trump at start
+- **Choose Trump**: Player selects trump suit
+- **Change Trump**: Use `chmod` to alter trump mid-encounter
+- **Remove Trump**: No suit is trump
+
+**Trump Interactions with Commands:**
+- `chmod` can change trump suit (trivializes "all one suit" encounters)
+- Makes some impossible puzzles suddenly solvable
 
 ### Lead Mechanics
-- **Steal Lead**: You always play first in trick
-- **Drop Lead**: Opponent always plays first
-- Consumables or encounter modifiers
 
-### Trump Mechanics
-- **Trump Suit**: One suit beats all others
-- **Set Trump**: Choose trump suit
-- **Remove Trump**: Eliminate trump from game
-- **Wildcard Cards**: Always trump, must be played
+**Lead Order:**
+- Who plays first each trick drastically changes puzzle
+- **Fixed lead**: Always you or always opponent
+- **Alternating lead**: Winner of previous trick leads next
+- **Steal lead**: Resource/charge to force yourself to play first
+- **Drop lead**: Resource/charge to force opponent to play first
 
-### Multi-Opponent
-- Face 2-3 opponents simultaneously
-- Each with different AI behavior (one aggressive, one passive)
-- Must navigate multiple strategies
-- Higher difficulty, better rewards
+**Lead Manipulation Resources:**
+- Limited charges to artificially change lead
+- Example: 2 "steal lead" charges per encounter
+- Adds tactical layer to sequencing
 
-### Special Win Conditions
-- Win **exactly** X tricks (not "at least")
-- Win without using specific suit
-- Win with hand size reduced (play with 3 cards instead of 5)
-- Win while opponent plays face-down (blind puzzle!)
+**Lead Swapping:**
+- Modify opponent's lead order (one swap)
+- Example: In 1v2, swap which opponent plays first
+- Changes puzzle significantly
+
+### Gauntlet Challenges
+
+**Same Hand, Multiple Targets:**
+- Play the **same hand** vs. **same opponent hand**
+- Must achieve different trick counts: 0, 1, 2, 3, 4, 5
+- Only by choosing different card play order
+- Pure puzzle optimization
+- High skill ceiling
+
+### AI Powers & Special Abilities
+
+**AI Wildcards:**
+- Opponent has wildcard(s) in hand
+- Always wins trick (or always loses, depending on type)
+- Visible to player (face-up)
+
+**AI Command Usage:**
+- AI declares intent to use command on:
+  - Card in play
+  - Card in player's hand
+  - Card in its own hand
+- Player can use resources to **retarget** AI command
+- Creates interactive puzzle layer
+
+**AI Behavior Modifiers:**
+- Beyond basic red/blue/neutral borders:
+  - **Greedy**: Always plays highest card possible
+  - **Cowardly**: Always plays lowest card possible
+  - **Mimic**: Copies player's strategy
+  - **Random**: Unpredictable (adds variance)
+
+### Commands Working on Active Encounters
+
+**Dual-Purpose Commands:**
+Commands work on **both deck** and **active encounters**:
+
+- `fork` - Duplicate card in deck OR duplicate card in active encounter hand
+- `shred` - Destroy card in deck OR destroy card from encounter (yours or opponent's)
+- `++` - Modify card value in deck OR modify card in active encounter
+- `chmod` - Change suit in deck OR change trump suit in encounter
+
+**Strategic Implications:**
+- "I can't solve this encounter with current cards..."
+- "...but if I use `++` to boost this 3 to a 4, suddenly I can take exactly 3 tricks!"
+- Commands become emergency escape hatches for stuck encounters
+
+**Resource Trade-off:**
+- Using command on encounter = not using on deck
+- Permanent deck improvement vs. immediate tactical solution
+
+### Encounter Complexity Scaling
+
+**Simple (Early Grid):**
+- 1v1, clear win condition
+- Normal 5-card hands
+- No trump, fixed lead
+- AI with simple behavior (red/blue)
+
+**Medium (Mid Grid):**
+- 1v1 or 1v2
+- Polarizing hands OR trump mechanics
+- Ally manipulation OR lead mechanics
+- AI with wildcards
+
+**Hard (Near Boss):**
+- 1v2 or 1v3
+- Polarizing hands AND trump mechanics
+- Gauntlet challenges
+- AI command usage
+- Reduced hand sizes
+
+**Boss:**
+- Combination of multiple mechanics
+- Multiple phases
+- Unique special rules
 
 ## Two Game Modes
 
