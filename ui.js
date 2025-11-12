@@ -649,7 +649,10 @@ class UI {
                 // Visible but locked - show hints
                 const iconEl = document.createElement('div');
                 iconEl.className = 'socket-icon';
-                iconEl.textContent = socket.encounterType?.categoryIcon || '?';
+                // Look up icon from CategoryInfo using the encounter's category
+                const categoryIcon = socket.encounterType?.category ?
+                    CategoryInfo[socket.encounterType.category]?.icon : '?';
+                iconEl.textContent = categoryIcon || '?';
                 contentEl.appendChild(iconEl);
 
                 const nameEl = document.createElement('div');
