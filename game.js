@@ -266,6 +266,11 @@ class Game {
         const encounterTypesList = Object.values(EncounterTypes);
         this.gridMap = new GridMap(encounterTypesList);
 
+        // Calculate encounters needed based on grid size
+        // Total non-wall sockets minus start socket (already won)
+        const totalSockets = this.gridMap.getAllSockets().filter(s => !s.isWall).length;
+        this.encountersNeededForBoss = Math.max(1, totalSockets - 1); // -1 for start socket
+
         // MEM resource system
         this.mem = 2; // Start with 2 MEM
         this.maxMem = 2;
@@ -454,24 +459,8 @@ class Game {
     }
 
     drawEncounterCardToHand() {
-        // Draw a single card from deck to hand (manual draw)
-        if (this.encounterDeck.length === 0) {
-            this.ui.showNotification('Empty Deck', 'No more encounter cards to draw!', '⚠️');
-            return false;
-        }
-
-        if (this.encounterHand.length >= this.encounterHandSize) {
-            this.ui.showNotification('Hand Full', 'Your hand is full! Place a card first.', '⚠️');
-            return false;
-        }
-
-        const card = this.drawEncounterCard();
-        if (card) {
-            this.encounterHand.push(card);
-            this.ui.updateEncounterHand();
-            return true;
-        }
-
+        // DEPRECATED - Grid map system doesn't use encounter hand
+        this.ui.showNotification('Deprecated Feature', 'Use grid map to unlock sockets', '⚠️');
         return false;
     }
 
