@@ -854,8 +854,16 @@ class UI {
     }
 
     updateEncounterHand() {
+        // DEPRECATED - Grid map system doesn't use encounter hand
+        if (!this.game.encounterDeck || !this.game.encounterHand) {
+            // Hide encounter hand UI for grid map system
+            if (this.encounterHandEl) this.encounterHandEl.style.display = 'none';
+            return;
+        }
+
         // Clear current hand display
         this.encounterHandEl.innerHTML = '';
+        this.encounterHandEl.style.display = 'flex';
 
         // Update deck count
         this.encounterDeckCountEl.textContent = this.game.encounterDeck.length;
@@ -1045,8 +1053,10 @@ class UI {
     }
 
     updateUpcomingEncounters() {
-        // Use pre-generated next encounter options
+        // DEPRECATED - Grid map system doesn't use encounter deck
         const options = this.game.nextEncounterOptions;
+        if (!options) return; // Grid map system doesn't have this
+
         this.upcomingEncountersEl.innerHTML = '';
 
         options.forEach((encounterType, index) => {
