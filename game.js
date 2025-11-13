@@ -451,15 +451,6 @@ class Game {
 
     fillEncounterHand() {
         // DEPRECATED - Grid map system replaces this
-        // (code below kept temporarily for compatibility)
-                this.encounterHand.push(card);
-            }
-        }
-
-        // Update UI
-        if (this.ui) {
-            this.ui.updateEncounterHand();
-        }
     }
 
     drawEncounterCardToHand() {
